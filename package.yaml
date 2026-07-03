@@ -1,0 +1,40 @@
+name:                typing-zoo
+version:             0.1.0.0
+description:         Typing Zoo
+license:             BSD3
+author:              Nick Chapman
+maintainer:          nic@amadido.co.uk
+github:              Nick-Chapman/typing-zoo.git
+
+dependencies:
+- array
+- base >= 4.7 && < 5
+- bytestring
+- containers
+- text
+
+default-extensions:
+- BlockArguments
+- RankNTypes
+- DuplicateRecordFields
+- GADTs
+- ImportQualifiedPost
+- LambdaCase
+- MultiWayIf
+- NamedFieldPuns
+- NumericUnderscores
+- RecordWildCards
+- ScopedTypeVariables
+
+ghc-options:
+- -Werror
+- -Wall
+- -Wno-name-shadowing
+
+library:
+  source-dirs: src
+
+executables:
+  main.exe:
+    main:                app/main.hs
+    dependencies:        typing-zoo
