@@ -23,7 +23,8 @@ default-extensions:
   echo GADTs >> $out
   echo MultiWayIf >> $out
   echo RecordWildCards >> $out
-  echo OverloadedStrings >> $out
+  #  echo OverloadedStrings >> $out
+  echo NondecreasingIndentation >> $out
 
 packages:
   echo text >> $@

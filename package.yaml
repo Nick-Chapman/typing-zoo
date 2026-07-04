@@ -25,7 +25,7 @@ default-extensions:
 - NumericUnderscores
 - RecordWildCards
 - ScopedTypeVariables
-- OverloadedStrings
+# - OverloadedStrings
 
 ghc-options:
 - -Werror

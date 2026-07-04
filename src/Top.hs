@@ -1,43 +1,36 @@
 module Top (main) where
 
-import Data.String (IsString(fromString))
-import Data.Map (Map)
-import Data.Map qualified as Map
+import AST (Exp,Id)
+import AST qualified (Exp(..),Bid(..))
 import Control.Monad (ap,liftM)
 import Data.List (intercalate)
+import Data.Map (Map)
+import Data.Map qualified as Map
+import Data.String (IsString(fromString))
+import Parser (parse)
+import Pretty (Pretty(..))
 
 main :: IO ()
 main = do
   putStrLn "*typing-zoo*"
-  let exp = parse "..."
-  putStrLn (pretty exp)
+  xs <- zip [1..] . take 3 . filterExamples . lines <$> readFile "basic.fun"
+  mapM_ runExample xs
+    where
+      filterExamples = filter (not . empty) . map dropComment
+      dropComment :: String -> String
+      dropComment = takeWhile (/= '#')
+      empty :: String -> Bool
+      empty s = s==""
+
+runExample :: (Int,String) -> IO ()
+runExample (i,s) = do
+  putStrLn $ "[" <> show i <> "] "
+  putStrLn $ "raw: " <> s
+  let exp = parse s
+  putStrLn $ "exp: " <> pretty exp
   runInferTypeOfExp exp >>= \case
-    Left err -> putStrLn ("**type error: " <> pretty err)
-    Right ty -> putStrLn (pretty ty)
-
-class Pretty a where
-  pretty :: a -> String
-
-parse :: String -> Exp
-parse _ =
-  ELam "f" $ ELam "x" $ EApp (EVar "f") (EApp (EVar "f") (EVar "x"))
---  ELam "f" $ ELam "g" $ ELam "x" $ EApp (EVar "f") (EApp (EVar "g") (EVar "x"))
---  ELam "u" $ EApp (EVar "u") (EVar "u")
-
-data Exp
-  = ELam Var Exp
-  | EApp Exp Exp
-  | EVar Var
-
-instance Pretty Exp where
-  pretty = \case
-    ELam x e -> "(\\" <> pretty x <> "->" <> pretty e <> ")"
-    EApp fun arg -> "(" <> pretty fun <> " " <> pretty arg <> ")"
-    EVar x -> pretty x
-
-newtype Var = Var { unVar :: String } deriving (Eq,Ord,Show)
-instance IsString Var where fromString = Var
-instance Pretty Var where pretty = unVar
+        Left err -> putStrLn ("**type error: " <> pretty err)
+        Right ty -> putStrLn ("type: " <> pretty ty)
 
 runInferTypeOfExp :: Exp -> IO (Either TypeError Type)
 runInferTypeOfExp exp = do
@@ -46,24 +39,30 @@ runInferTypeOfExp exp = do
 
 typeExp :: Ctx -> Exp -> Infer Type
 typeExp ctx = \case
-  ELam x body -> do
+  AST.Lam _pos (AST.Bid _ x) body -> do
     let Ctx{xmap} = ctx
     tyArg <- TypeVar <$> IFresh
     let ctx1 = ctx { xmap = Map.insert x tyArg xmap }
     tyRes <- typeExp ctx1 body
     pure (tyArg :-> tyRes)
-  EApp fun arg -> do
+  AST.App fun _pos arg -> do
     tyRes <- TypeVar <$> IFresh
     tyFun <- typeExp ctx fun
     tyArg <- typeExp ctx arg
     unifyTy tyFun (tyArg :-> tyRes)
     pure tyRes
-  EVar x -> do
+  AST.Var _pos x -> do
     let Ctx{xmap} = ctx
     let err = error ("typeExp/EVar" <> pretty x)
     pure $ maybe err id $ Map.lookup x xmap
+  AST.Lit{} -> do
+    undefined
+  AST.RecLam{} -> do
+    undefined
+  AST.Let{} -> do
+    undefined
 
-data Ctx = Ctx { xmap :: Map Var Type }
+data Ctx = Ctx { xmap :: Map Id Type }
 ctx0 :: Ctx
 ctx0 = Ctx { xmap = Map.empty }
 
@@ -110,13 +109,13 @@ runInfer infer = loop state0 infer \_s a -> pure (Right a)
       IFresh -> \k -> do
         let IState{u} = s
         let var = TVar ("t" <> show u)
-        putStrLn ("fresh: -> " <> pretty var)
+        --putStrLn ("fresh: -> " <> pretty var)
         k s { u = u + 1 } var
       ISub v ty -> \k -> do
-        putStrLn ("sub: " <> pretty v <> "~>" <> pretty ty)
+        --putStrLn ("sub: " <> pretty v <> "~>" <> pretty ty)
         let IState{subst=subst0} = s
         let subst = subExtend subst0 v ty
-        putStrLn ("subst: " <> pretty subst)
+        --putStrLn ("subst: " <> pretty subst)
         k s { subst } ()
       IFail mes -> \_k -> do
         pure (Left (TypeError mes))
