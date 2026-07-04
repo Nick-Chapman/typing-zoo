@@ -1,7 +1,7 @@
 module Top (main) where
 
-import AST (Exp,Id)
-import AST qualified (Exp(..),Bid(..))
+import AST (Exp,Id,mkUserId)
+import AST qualified (Exp(..),Bid(..),Literal(..))
 import Control.Monad (ap,liftM)
 import Data.List (intercalate)
 import Data.Map (Map)
@@ -13,9 +13,12 @@ import Pretty (Pretty(..))
 main :: IO ()
 main = do
   putStrLn "*typing-zoo*"
-  xs <- zip [1..] . take 3 . filterExamples . lines <$> readFile "basic.fun"
+  -- example 12 has wrong type
+  xs <- pick [12] . filterExamples . lines <$> readFile "basic.fun"
   mapM_ runExample xs
     where
+
+      pick ns xs = [ (n, xs!!n) | n <- ns ]
       filterExamples = filter (not . empty) . map dropComment
       dropComment :: String -> String
       dropComment = takeWhile (/= '#')
@@ -55,8 +58,11 @@ typeExp ctx = \case
     let Ctx{xmap} = ctx
     let err = error ("typeExp/EVar" <> pretty x)
     pure $ maybe err id $ Map.lookup x xmap
-  AST.Lit{} -> do
-    undefined
+  AST.Lit _pos  lit ->
+    case lit of
+      AST.LitN{} -> pure TypeInt
+      AST.LitC{} -> undefined
+      AST.LitS{} -> undefined
   AST.RecLam{} -> do
     undefined
   AST.Let{} -> do
@@ -64,7 +70,12 @@ typeExp ctx = \case
 
 data Ctx = Ctx { xmap :: Map Id Type }
 ctx0 :: Ctx
-ctx0 = Ctx { xmap = Map.empty }
+ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
+  where
+    init =
+      [ ("true", TypeBool)
+      , ("false", TypeBool)
+      ]
 
 unifyTy :: Type -> Type -> Infer ()
 unifyTy ty1 ty2 = do
@@ -72,9 +83,16 @@ unifyTy ty1 ty2 = do
   ty2 <- refine ty2
   unify (ty1,ty2)
   where
+    mismatch = undefined
     unify = \case
       (ty, TypeVar v) -> subTy v ty
       (TypeVar v, ty) -> subTy v ty
+      (TypeInt, TypeInt) -> pure ()
+      (TypeInt, _) -> mismatch
+      (_, TypeInt) -> mismatch
+      (TypeBool, TypeBool) -> pure ()
+      (TypeBool, _) -> mismatch
+      (_, TypeBool) -> mismatch
       (a :-> b, c :-> d) -> do
         unify (a,c)
         unify (b,d)
@@ -151,12 +169,16 @@ subExtend subst v ty = do
 
 data Type
   = TypeVar TVar
+  | TypeInt
+  | TypeBool
   | Type :-> Type
   deriving Show
 
 instance Pretty Type where
   pretty = \case
     TypeVar v -> pretty v
+    TypeInt -> "Int"
+    TypeBool -> "Bool"
     arg :-> res -> "(" <> pretty arg <> "->" <> pretty res <> ")"
 
 occurs :: TVar -> Type -> Bool
@@ -164,6 +186,8 @@ occurs v = loop
   where
     loop = \case
       TypeVar v' -> v == v'
+      TypeInt -> False
+      TypeBool -> False
       ty1 :-> ty2 -> loop ty1 || loop ty2
 
 refineWithSubst :: Type -> Subst -> Type
@@ -174,6 +198,8 @@ specialize f = trav
   where
     trav = \case
       ty@(TypeVar v) -> case f v of Just ty' -> ty'; Nothing -> ty
+      ty@TypeInt -> ty
+      ty@TypeBool -> ty
       ty1 :-> ty2 -> trav ty1 :-> trav ty2
 
 newtype TVar = TVar { unTVar :: String } deriving (Eq,Ord,Show)
