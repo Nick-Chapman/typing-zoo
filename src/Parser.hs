@@ -39,7 +39,7 @@ gram6 :: Par Exp --Prog
 gram6 = topExp where
 --gram6 = program where
 
-  keywords = [] --"let","in","if","then","else","fun","match","with","rec","true","false","type","of","assert"]
+  keywords = ["let","rec","in"] --"let","in","if","then","else","fun","match","with","rec","true","false","type","of","assert"]
 
   fail = alts []
 

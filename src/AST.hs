@@ -37,7 +37,8 @@ instance Pretty Exp where
     Var _ x -> pretty x
     Lit _ x -> pretty x
     RecLam{} -> undefined
-    Let{} -> undefined
+    Let _ (Bid _ x) rhs body ->
+      "let " <> pretty x <> " = " <> pretty rhs <> " in " <> pretty body
 
 instance Pretty Literal where
   pretty = \case

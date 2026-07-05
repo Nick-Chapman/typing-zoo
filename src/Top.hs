@@ -25,14 +25,12 @@ main = do
 
 runExample :: (Int,String) -> IO ()
 runExample (i,s) = do
-  putStrLn $ "[" <> show i <> "] "
-  putStrLn $ "raw: " <> s
   let exp = parse s
-  --putStrLn $ "exp: " <> pretty exp
+  putStrLn $ "[" <> show i <> "] " <> pretty exp
   runInferTypeOfExp exp >>= \case
         Left err -> putStrLn ("**type error: " <> pretty err)
         Right (_d@(Derivation (J _ _ ty) _)) -> do
-          putStrLn ("type: " <> pretty ty)
+          putStrLn (":: " <> pretty ty)
           --putStrLn ("derivation: " <> pretty _d)
 
 runInferTypeOfExp :: Exp -> IO (Either TypeError Derivation)
@@ -68,8 +66,11 @@ typeExp ctx exp = case exp of
       AST.LitS{} -> undefined
   AST.RecLam{} -> do
     undefined
-  AST.Let{} -> do
-    undefined
+  AST.Let _pos x rhs body -> do -- temp; prior to support generalization
+    let pos = undefined
+    let func = AST.Lam pos x body
+    let appliedAbstraction = AST.App func pos rhs
+    typeExp ctx appliedAbstraction
 
 
 refineDerivation :: Derivation -> Infer Derivation
