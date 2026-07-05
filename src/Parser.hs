@@ -4,7 +4,7 @@ import AST (Bid(..),Exp,Id,mkUserId)
 import AST qualified
 import Data.Char qualified as Char (isAlpha,isNumber,isLower)
 import Data.Text qualified as Text (pack)
-import Par4 (Par,noError,skip,alts,many,some,sat,position,Pos(..))
+import Par4 (Par,noError,skip,alts,many,some,sat,position,Pos(..),separated)
 import Par4 qualified (parse)
 import Text.Printf (printf)
 
@@ -214,8 +214,8 @@ gram6 = topExp where
 -}
   literal = alts [positionedLit] --,unit]
 
-{-  tupleExp :: Par [Exp] =
-    bracketed (separated (key ",") exp)-}
+  tupleExp :: Par [Exp] =
+    bracketed (separated (key ",") exp)
 
 {-
   listExp = do
@@ -242,7 +242,8 @@ gram6 = topExp where
       , do e <- atom; pure (AST.Con pos c [e])
       , pure (AST.Con pos c [])
       ]
-
+-}
+{-
   cons0 = do
     pos <- position
     c <- constructor
@@ -250,9 +251,14 @@ gram6 = topExp where
 -}
   atom0 = alts [literal,var
                -- ,listExp
-               ,bracketed exp
+               --,bracketed exp
+               , mkTupleOrBracketed <$> tupleExp
                --,cons0
                ]
+
+  mkTupleOrBracketed = \case
+    [e] -> e
+    es -> AST.Tuple es -- unit comes as zero tuple
 
   prefixNames = ["!"]
 
@@ -319,7 +325,7 @@ gram6 = topExp where
                                ,infixGroup5,infixGroup6,infixGroup7,infixGroup8])
 
   infix0 = alts [--consApp,
-                application] --, ignored_assert]
+                 application] --, ignored_assert]
   infix1 = infixOp infixGroup1 infix0
   infix2 = infixOp infixGroup2 infix1
   infix3 = infixOp infixGroup3 infix2

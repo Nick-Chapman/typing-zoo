@@ -10,6 +10,7 @@ module AST
 import Data.String (IsString(fromString))
 import Par4 (Pos)
 import Pretty (Pretty(..))
+import Data.List(intercalate)
 
 data Exp
   = Var Pos Id
@@ -20,6 +21,7 @@ data Exp
   | RecLam Pos Bool Bid Bid Exp
   | App Exp Pos Exp
   | Let Pos Bid Exp Exp
+  | Tuple [Exp]
 --  | Match Pos Exp [Arm]
 
 data Bid = Bid Pos Id -- we always know the position of a bound identifier...
@@ -39,7 +41,8 @@ instance Pretty Exp where
     RecLam{} -> undefined
     Let _ (Bid _ x) rhs body ->
       "let " <> pretty x <> " = " <> pretty rhs <> " in " <> pretty body
-
+    Tuple es ->
+      "(" <> intercalate "," (map pretty es) <> ")" 
 instance Pretty Literal where
   pretty = \case
     LitC c -> show c

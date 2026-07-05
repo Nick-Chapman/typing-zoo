@@ -8,6 +8,7 @@ import Data.Map qualified as Map
 import Data.String (IsString(fromString))
 import Parser (parse)
 import Pretty (Pretty(..))
+import Data.List (intercalate)
 
 main :: IO ()
 main = do
@@ -26,7 +27,8 @@ main = do
 runExample :: (Int,String) -> IO ()
 runExample (i,s) = do
   let exp = parse s
-  putStrLn $ "[" <> show i <> "] " <> pretty exp
+  putStrLn $ "[" <> show i <> "] " <> s
+  --putStrLn $ "[" <> show i <> "] " <> pretty exp
   runInferTypeOfExp exp >>= \case
         Left err -> putStrLn ("**type error: " <> pretty err)
         Right (_d@(Derivation (J _ _ ty) _)) -> do
@@ -43,34 +45,38 @@ typeExp :: Ctx -> Exp -> Infer Derivation
 typeExp ctx exp = case exp of
   AST.Lam _pos (AST.Bid _ x) body -> do
     let Ctx{xmap} = ctx
-    tyArg <- TypeVar <$> IFresh (pretty x)
-    let ctx1 = ctx { xmap = Map.insert x tyArg xmap }
-    d1@(Derivation (J _ _ tyRes) _) <- typeExp ctx1 body
-    let tyFun = (tyArg :-> tyRes)
-    pure $ Derivation (J ctx exp tyFun) [d1]
+    typArg <- TypeVar <$> IFresh (pretty x)
+    let ctx1 = ctx { xmap = Map.insert x typArg xmap }
+    d1@(Derivation (J _ _ typRes) _) <- typeExp ctx1 body
+    let typFun = (typArg :-> typRes)
+    pure $ Derivation (J ctx exp typFun) [d1]
   AST.App fun _pos arg -> do
-    tyRes <- TypeVar <$> IFresh (pretty exp)
-    d1@(Derivation (J _ _ tyFun) _) <- typeExp ctx fun
-    d2@(Derivation (J _ _ tyArg) _) <- typeExp ctx arg
-    unify tyFun (tyArg :-> tyRes)
-    pure $ Derivation (J ctx exp tyRes) [d1,d2]
+    typRes <- TypeVar <$> IFresh (pretty exp)
+    d1@(Derivation (J _ _ typFun) _) <- typeExp ctx fun
+    d2@(Derivation (J _ _ typArg) _) <- typeExp ctx arg
+    unify typFun (typArg :-> typRes)
+    pure $ Derivation (J ctx exp typRes) [d1,d2]
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
     let err = error ("typeExp/EVar" <> pretty x)
-    let ty = maybe err id $ Map.lookup x xmap
-    pure $ Derivation (J ctx exp ty) []
+    let typ = maybe err id $ Map.lookup x xmap
+    pure $ Derivation (J ctx exp typ) []
   AST.Lit _pos  lit ->
     case lit of
-      AST.LitN{} -> pure $ Derivation (J ctx exp TypeInt) []
+      AST.LitN{} -> pure $ Derivation (J ctx exp typeInt) []
       AST.LitC{} -> undefined
       AST.LitS{} -> undefined
   AST.RecLam{} -> do
     undefined
-  AST.Let _pos x rhs body -> do -- temp; prior to support generalization
-    let pos = undefined
+  AST.Let pos x rhs body -> do -- temp; prior to support generalization
     let func = AST.Lam pos x body
     let appliedAbstraction = AST.App func pos rhs
     typeExp ctx appliedAbstraction
+  AST.Tuple es -> do
+    ds <- mapM (typeExp ctx) es
+    let typs = [ typ | Derivation (J _ _ typ) _ <- ds ]
+    let typ = TypeCon (Tcon "Tuple") typs
+    pure $ Derivation (J ctx exp typ) ds
 
 
 refineDerivation :: Derivation -> Infer Derivation
@@ -112,8 +118,8 @@ ctx0 :: Ctx
 ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
   where
     init =
-      [ ("true", TypeBool)
-      , ("false", TypeBool)
+      [ ("true", typeBool)
+      , ("false", typeBool)
       ]
 
 unify :: Type -> Type -> Infer ()
@@ -125,12 +131,10 @@ unify ty1 ty2 = do
   case (ty1,ty2) of
     (ty, TypeVar v) -> subTy v ty
     (TypeVar v, ty) -> subTy v ty
-    (TypeInt, TypeInt) -> pure ()
-    (TypeInt, _) -> mismatch
-    (_, TypeInt) -> mismatch
-    (TypeBool, TypeBool) -> pure ()
-    (TypeBool, _) -> mismatch
-    (_, TypeBool) -> mismatch
+    (TypeCon c1 typs1, TypeCon c2 typs2) | c1==c2 -> do
+      undefined typs1 typs2
+    (TypeCon{}, _) -> mismatch
+    (_, TypeCon{}) -> mismatch
     (a :-> b, c :-> d) -> do
       unify a c
       unify b d
@@ -204,18 +208,24 @@ subExtend subst v ty = do
   let vmap = Map.insert v ty' shifted
   Subst {vmap}
 
+typeInt,typeBool :: Type
+typeInt = TypeCon (Tcon "Int") []
+typeBool = TypeCon (Tcon "Bool") []
+
 data Type
   = TypeVar TVar
-  | TypeInt
-  | TypeBool
+  | TypeCon Tcon [Type]
   | Type :-> Type
-  deriving Show
+
+newtype Tcon = Tcon String deriving (Eq)
+instance Pretty Tcon where pretty (Tcon s) = s
 
 instance Pretty Type where
   pretty = \case
     TypeVar v -> pretty v
-    TypeInt -> "Int"
-    TypeBool -> "Bool"
+    TypeCon (Tcon "Tuple") typs -> "(" <> intercalate "," (map pretty typs) <> ")"
+    TypeCon c [] -> pretty c
+    TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pretty typs) <> ")"
     arg :-> res -> "(" <> pretty arg <> "->" <> pretty res <> ")"
 
 occurs :: TVar -> Type -> Bool
@@ -223,8 +233,7 @@ occurs v = loop
   where
     loop = \case
       TypeVar v' -> v == v'
-      TypeInt -> False
-      TypeBool -> False
+      TypeCon _ typs -> any loop typs
       ty1 :-> ty2 -> loop ty1 || loop ty2
 
 refineTypeWithSubst :: Type -> Subst -> Type
@@ -235,8 +244,7 @@ specialize f = trav
   where
     trav = \case
       ty@(TypeVar v) -> case f v of Just ty' -> ty'; Nothing -> ty
-      ty@TypeInt -> ty
-      ty@TypeBool -> ty
+      TypeCon c typs -> TypeCon c (map trav typs)
       ty1 :-> ty2 -> trav ty1 :-> trav ty2
 
 newtype TVar = TVar { unTVar :: String } deriving (Eq,Ord,Show)

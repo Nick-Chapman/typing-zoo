@@ -1,8 +1,3 @@
-# My pre-parser examples
-\f x -> f (f x)
-\f g x -> f (g x)
-\u -> u u
-
 # Basic literals
 42
 true
@@ -40,9 +35,9 @@ let twice = \f -> \x -> f (f x) in twice
 let compose = \f -> \g -> \x -> f (g x) in compose
 
 # Complex examples
-let K = \x -> \y -> x in K
-let S = \f -> \g -> \x -> f x (g x) in S
-let Y = \f -> (\x -> f (x x)) (\x -> f (x x)) in Y
+let k = \x -> \y -> x in k
+let s = \f -> \g -> \x -> f x (g x) in s
+let y = \f -> (\x -> f (x x)) (\x -> f (x x)) in y
 
 # Polymorphic examples (simplified for our basic implementation)
 let id = \x -> x in (id, id)
