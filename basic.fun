@@ -50,3 +50,10 @@ let flip = \f -> \x -> \y -> f y x in flip
 
 # Tuple unification
 \a b c -> let f x = x in (f (a,b), f (c,1))
+
+# Mismatch
+\f -> (f 1, f true)
+\f -> (f 1, f (2,3))
+\f -> (f (1,2), f (3,4,5))
+\f a -> (f (a,a), f (a,a,a))
+\x -> 1 x

@@ -126,7 +126,7 @@ unify ty1 ty2 = do
   ty1 <- refine ty1
   ty2 <- refine ty2
   -- IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
-  let mismatch = undefined
+  let mismatch = IFail (pretty ty1 <> " ~ " <> pretty ty2)
   case (ty1,ty2) of
     (ty, TypeVar v) -> subTy v ty
     (TypeVar v, ty) -> subTy v ty
