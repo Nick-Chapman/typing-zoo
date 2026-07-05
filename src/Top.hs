@@ -13,11 +13,10 @@ main :: IO ()
 main = do
   putStrLn "*typing-zoo*"
   -- example 12 has wrong type
-  xs <- pick [12] . filterExamples . lines <$> readFile "basic.fun"
+  xs <- zip [0..] . filterExamples . lines <$> readFile "basic.fun"
   mapM_ runExample xs
     where
-
-      pick ns xs = [ (n, xs!!n) | n <- ns ]
+      _pick ns xs = [ (n, xs!!n) | n <- ns ]
       filterExamples = filter (not . empty) . map dropComment
       dropComment :: String -> String
       dropComment = takeWhile (/= '#')
@@ -29,12 +28,12 @@ runExample (i,s) = do
   putStrLn $ "[" <> show i <> "] "
   putStrLn $ "raw: " <> s
   let exp = parse s
-  putStrLn $ "exp: " <> pretty exp
+  --putStrLn $ "exp: " <> pretty exp
   runInferTypeOfExp exp >>= \case
         Left err -> putStrLn ("**type error: " <> pretty err)
-        Right (d@(Derivation (J _ _ ty) _)) -> do
+        Right (_d@(Derivation (J _ _ ty) _)) -> do
           putStrLn ("type: " <> pretty ty)
-          putStrLn ("derivation: " <> pretty d)
+          --putStrLn ("derivation: " <> pretty _d)
 
 runInferTypeOfExp :: Exp -> IO (Either TypeError Derivation)
 runInferTypeOfExp exp = do
@@ -55,7 +54,7 @@ typeExp ctx exp = case exp of
     tyRes <- TypeVar <$> IFresh (pretty exp)
     d1@(Derivation (J _ _ tyFun) _) <- typeExp ctx fun
     d2@(Derivation (J _ _ tyArg) _) <- typeExp ctx arg
-    unifyTy tyFun (tyArg :-> tyRes)
+    unify tyFun (tyArg :-> tyRes)
     pure $ Derivation (J ctx exp tyRes) [d1,d2]
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
@@ -116,26 +115,24 @@ ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
       , ("false", TypeBool)
       ]
 
-unifyTy :: Type -> Type -> Infer ()
-unifyTy ty1 ty2 = do
+unify :: Type -> Type -> Infer ()
+unify ty1 ty2 = do
   ty1 <- refine ty1
   ty2 <- refine ty2
-  IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
-  unify (ty1,ty2)
-  where
-    mismatch = undefined
-    unify = \case
-      (ty, TypeVar v) -> subTy v ty
-      (TypeVar v, ty) -> subTy v ty
-      (TypeInt, TypeInt) -> pure ()
-      (TypeInt, _) -> mismatch
-      (_, TypeInt) -> mismatch
-      (TypeBool, TypeBool) -> pure ()
-      (TypeBool, _) -> mismatch
-      (_, TypeBool) -> mismatch
-      (a :-> b, c :-> d) -> do
-        unifyTy a c
-        unifyTy b d
+  -- IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
+  let mismatch = undefined
+  case (ty1,ty2) of
+    (ty, TypeVar v) -> subTy v ty
+    (TypeVar v, ty) -> subTy v ty
+    (TypeInt, TypeInt) -> pure ()
+    (TypeInt, _) -> mismatch
+    (_, TypeInt) -> mismatch
+    (TypeBool, TypeBool) -> pure ()
+    (TypeBool, _) -> mismatch
+    (_, TypeBool) -> mismatch
+    (a :-> b, c :-> d) -> do
+      unify a c
+      unify b d
 
 refine :: Type -> Infer Type
 refine ty = refineTypeWithSubst ty <$> ICurrentSubst
@@ -168,16 +165,16 @@ runInfer infer = loop state0 infer \_s a -> pure (Right a)
       IDebug mes -> \k -> do
         putStrLn mes
         k s ()
-      IFresh who -> \k -> do
+      IFresh _who -> \k -> do
         let IState{u} = s
         let var = TVar ("t" <> show u)
-        putStrLn $ "fresh(" <> who <> "): -> " <> pretty var
+        --putStrLn $ "fresh(" <> _who <> "): -> " <> pretty var
         k s { u = u + 1 } var
       ISub v ty -> \k -> do
-        putStrLn ("sub: " <> pretty v <> " := " <> pretty ty)
+        --putStrLn ("sub: " <> pretty v <> " := " <> pretty ty)
         let IState{subst=subst0} = s
         let subst = subExtend subst0 v ty
-        putStrLn ("subst: " <> pretty subst)
+        --putStrLn ("subst: " <> pretty subst)
         k s { subst } ()
       IFail mes -> \_k -> do
         pure (Left (TypeError mes))
