@@ -1,3 +1,11 @@
 
 *top: src/main.exe basic.fun
   ./$in
+
+basic.out: src/main.exe basic.fun
+  ./$in1 > $out
+
+expect.names :
+  echo basic.out >> $out
+
+include ~/code/jenga/rulelib/expect.jenga
