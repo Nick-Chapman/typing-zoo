@@ -47,13 +47,13 @@ typeExp ctx exp = case exp of
     typArg <- TypeUnknown <$> IFresh (pretty x)
     let ctx1 = ctx { xmap = Map.insert x typArg xmap }
     d1@(Derivation (J _ _ typRes) _) <- typeExp ctx1 body
-    let typFun = (typArg :-> typRes)
+    let typFun = Type (typArg :-> typRes)
     pure $ Derivation (J ctx exp typFun) [d1]
   AST.App fun _pos arg -> do
     typRes <- TypeUnknown <$> IFresh (pretty exp)
     d1@(Derivation (J _ _ typFun) _) <- typeExp ctx fun
     d2@(Derivation (J _ _ typArg) _) <- typeExp ctx arg
-    unify typFun (typArg :-> typRes)
+    unify typFun (Type (typArg :-> typRes))
     pure $ Derivation (J ctx exp typRes) [d1,d2]
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
@@ -73,7 +73,7 @@ typeExp ctx exp = case exp of
   AST.Tuple es -> do
     ds <- mapM (typeExp ctx) es
     let typs = [ typ | Derivation (J _ _ typ) _ <- ds ]
-    let typ = TypeCon (Tcon "Tuple") typs
+    let typ = Type (TypeCon (Tcon "Tuple") typs)
     pure $ Derivation (J ctx exp typ) ds
 
 
@@ -129,12 +129,12 @@ unify ty1 ty2 = do
   case (ty1,ty2) of
     (ty, TypeUnknown v) -> subTy v ty
     (TypeUnknown v, ty) -> subTy v ty
-    (TypeCon c1 typs1, TypeCon c2 typs2) | c1==c2 -> do
+    (Type (TypeCon c1 typs1), Type (TypeCon c2 typs2)) | c1==c2 -> do
       if length typs1 /= length typs2 then mismatch else
         sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
-    (TypeCon{}, _) -> mismatch
-    (_, TypeCon{}) -> mismatch
-    (a :-> b, c :-> d) -> do
+    (Type (TypeCon{}), _) -> mismatch
+    (_, Type (TypeCon{})) -> mismatch
+    (Type (a :-> b), Type (c :-> d)) -> do
       unify a c
       unify b d
 
@@ -208,13 +208,16 @@ subExtend subst v ty = do
   Subst {vmap}
 
 typeInt,typeBool :: Type
-typeInt = TypeCon (Tcon "Int") []
-typeBool = TypeCon (Tcon "Bool") []
+typeInt = Type (TypeCon (Tcon "Int") [])
+typeBool = Type (TypeCon (Tcon "Bool") [])
+
+data TypeF t
+  = TypeCon Tcon [t]
+  | t :-> t
 
 data Type
-  = TypeUnknown UniVar
-  | TypeCon Tcon [Type]
-  | Type :-> Type
+  = Type (TypeF Type)
+  | TypeUnknown UniVar
 
 newtype Tcon = Tcon String deriving (Eq)
 instance Pretty Tcon where pretty (Tcon s) = s
@@ -222,18 +225,18 @@ instance Pretty Tcon where pretty (Tcon s) = s
 instance Pretty Type where
   pretty = \case
     TypeUnknown v -> pretty v
-    TypeCon (Tcon "Tuple") typs -> "(" <> intercalate "," (map pretty typs) <> ")"
-    TypeCon c [] -> pretty c
-    TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pretty typs) <> ")"
-    arg :-> res -> "(" <> pretty arg <> "->" <> pretty res <> ")"
+    Type (TypeCon (Tcon "Tuple") typs) -> "(" <> intercalate "," (map pretty typs) <> ")"
+    Type (TypeCon c []) -> pretty c
+    Type (TypeCon c typs) -> pretty c <> "(" <> intercalate "," (map pretty typs) <> ")"
+    Type (arg :-> res) -> "(" <> pretty arg <> "->" <> pretty res <> ")"
 
 occurs :: UniVar -> Type -> Bool
 occurs v = loop
   where
     loop = \case
       TypeUnknown v' -> v == v'
-      TypeCon _ typs -> any loop typs
-      ty1 :-> ty2 -> loop ty1 || loop ty2
+      Type (TypeCon _ typs) -> any loop typs
+      Type (ty1 :-> ty2) -> loop ty1 || loop ty2
 
 refineTypeWithSubst :: Type -> Subst -> Type
 refineTypeWithSubst ty Subst{vmap} = specialize (\v -> Map.lookup v vmap) ty
@@ -243,8 +246,8 @@ specialize f = trav
   where
     trav = \case
       ty@(TypeUnknown v) -> case f v of Just ty' -> ty'; Nothing -> ty
-      TypeCon c typs -> TypeCon c (map trav typs)
-      ty1 :-> ty2 -> trav ty1 :-> trav ty2
+      Type (TypeCon c typs) -> Type (TypeCon c (map trav typs))
+      Type (ty1 :-> ty2) -> Type (trav ty1 :-> trav ty2)
 
 newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)
 instance Pretty UniVar where pretty (UniVar i) = show i
