@@ -134,8 +134,8 @@ unifyTy ty1 ty2 = do
       (TypeBool, _) -> mismatch
       (_, TypeBool) -> mismatch
       (a :-> b, c :-> d) -> do
-        unify (a,c)
-        unify (b,d)
+        unifyTy a c
+        unifyTy b d
 
 refine :: Type -> Infer Type
 refine ty = refineTypeWithSubst ty <$> ICurrentSubst
