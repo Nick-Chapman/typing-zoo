@@ -47,3 +47,6 @@ let flip = \f -> \x -> \y -> f y x in flip
 # Error cases (should fail)
 \x -> x x
 (\x -> x x) (\x -> x x)
+
+# Tuple unification
+\a b c -> let f x = x in (f (a,b), f (c,1))

@@ -66,8 +66,7 @@ typeExp ctx exp = case exp of
       AST.LitN{} -> pure $ Derivation (J ctx exp typeInt) []
       AST.LitC{} -> undefined
       AST.LitS{} -> undefined
-  AST.RecLam{} -> do
-    undefined
+  AST.RecLam{} -> undefined
   AST.Let pos x rhs body -> do -- temp; prior to support generalization
     let func = AST.Lam pos x body
     let appliedAbstraction = AST.App func pos rhs
@@ -132,7 +131,8 @@ unify ty1 ty2 = do
     (ty, TypeVar v) -> subTy v ty
     (TypeVar v, ty) -> subTy v ty
     (TypeCon c1 typs1, TypeCon c2 typs2) | c1==c2 -> do
-      undefined typs1 typs2
+      if length typs1 /= length typs2 then mismatch else
+        sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
     (TypeCon{}, _) -> mismatch
     (_, TypeCon{}) -> mismatch
     (a :-> b, c :-> d) -> do
