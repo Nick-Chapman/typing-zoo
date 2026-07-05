@@ -5,7 +5,6 @@ import AST qualified (Exp(..),Bid(..),Literal(..))
 import Control.Monad (ap,liftM)
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.String (IsString(fromString))
 import Parser (parse)
 import Pretty (Pretty(..))
 import Data.List (intercalate)
@@ -45,13 +44,13 @@ typeExp :: Ctx -> Exp -> Infer Derivation
 typeExp ctx exp = case exp of
   AST.Lam _pos (AST.Bid _ x) body -> do
     let Ctx{xmap} = ctx
-    typArg <- TypeVar <$> IFresh (pretty x)
+    typArg <- TypeUnknown <$> IFresh (pretty x)
     let ctx1 = ctx { xmap = Map.insert x typArg xmap }
     d1@(Derivation (J _ _ typRes) _) <- typeExp ctx1 body
     let typFun = (typArg :-> typRes)
     pure $ Derivation (J ctx exp typFun) [d1]
   AST.App fun _pos arg -> do
-    typRes <- TypeVar <$> IFresh (pretty exp)
+    typRes <- TypeUnknown <$> IFresh (pretty exp)
     d1@(Derivation (J _ _ typFun) _) <- typeExp ctx fun
     d2@(Derivation (J _ _ typArg) _) <- typeExp ctx arg
     unify typFun (typArg :-> typRes)
@@ -128,8 +127,8 @@ unify ty1 ty2 = do
   -- IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
   let mismatch = IFail (pretty ty1 <> " ~ " <> pretty ty2)
   case (ty1,ty2) of
-    (ty, TypeVar v) -> subTy v ty
-    (TypeVar v, ty) -> subTy v ty
+    (ty, TypeUnknown v) -> subTy v ty
+    (TypeUnknown v, ty) -> subTy v ty
     (TypeCon c1 typs1, TypeCon c2 typs2) | c1==c2 -> do
       if length typs1 /= length typs2 then mismatch else
         sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
@@ -142,7 +141,7 @@ unify ty1 ty2 = do
 refine :: Type -> Infer Type
 refine ty = refineTypeWithSubst ty <$> ICurrentSubst
 
-subTy :: TVar -> Type -> Infer ()
+subTy :: UniVar -> Type -> Infer ()
 subTy v ty = if v `occurs` ty then IFail "occurs" else ISub v ty
 
 instance Functor Infer where fmap = liftM
@@ -152,8 +151,8 @@ instance Monad Infer where (>>=) = IBind
 data Infer a where
   IPure :: a -> Infer a
   IBind :: Infer a -> (a -> Infer b) -> Infer b
-  IFresh :: String -> Infer TVar
-  ISub :: TVar -> Type -> Infer ()
+  IFresh :: String -> Infer UniVar
+  ISub :: UniVar -> Type -> Infer ()
   IFail :: String -> Infer ()
   ICurrentSubst :: Infer Subst
   IDebug :: String -> Infer ()
@@ -172,7 +171,7 @@ runInfer infer = loop state0 infer \_s a -> pure (Right a)
         k s ()
       IFresh _who -> \k -> do
         let IState{u} = s
-        let var = TVar ("t" <> show u)
+        let var = UniVar u
         --putStrLn $ "fresh(" <> _who <> "): -> " <> pretty var
         k s { u = u + 1 } var
       ISub v ty -> \k -> do
@@ -191,13 +190,13 @@ data IState = IState { u :: Int, subst :: Subst }
 state0 :: IState
 state0 = IState { u = 0, subst = subst0 }
 
-data Subst = Subst { vmap :: Map TVar Type }
+data Subst = Subst { vmap :: Map UniVar Type }
 instance Pretty Subst where pretty Subst{vmap=m} = pretty m
 
 subst0 :: Subst
 subst0 = Subst { vmap = Map.empty }
 
-subExtend :: Subst -> TVar -> Type -> Subst
+subExtend :: Subst -> UniVar -> Type -> Subst
 subExtend subst v ty = do
   let Subst{vmap = vmap0} = subst
   --let domain = Map.keys vmap0
@@ -213,7 +212,7 @@ typeInt = TypeCon (Tcon "Int") []
 typeBool = TypeCon (Tcon "Bool") []
 
 data Type
-  = TypeVar TVar
+  = TypeUnknown UniVar
   | TypeCon Tcon [Type]
   | Type :-> Type
 
@@ -222,34 +221,33 @@ instance Pretty Tcon where pretty (Tcon s) = s
 
 instance Pretty Type where
   pretty = \case
-    TypeVar v -> pretty v
+    TypeUnknown v -> pretty v
     TypeCon (Tcon "Tuple") typs -> "(" <> intercalate "," (map pretty typs) <> ")"
     TypeCon c [] -> pretty c
     TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pretty typs) <> ")"
     arg :-> res -> "(" <> pretty arg <> "->" <> pretty res <> ")"
 
-occurs :: TVar -> Type -> Bool
+occurs :: UniVar -> Type -> Bool
 occurs v = loop
   where
     loop = \case
-      TypeVar v' -> v == v'
+      TypeUnknown v' -> v == v'
       TypeCon _ typs -> any loop typs
       ty1 :-> ty2 -> loop ty1 || loop ty2
 
 refineTypeWithSubst :: Type -> Subst -> Type
 refineTypeWithSubst ty Subst{vmap} = specialize (\v -> Map.lookup v vmap) ty
 
-specialize :: (TVar -> Maybe Type) -> Type -> Type
+specialize :: (UniVar -> Maybe Type) -> Type -> Type
 specialize f = trav
   where
     trav = \case
-      ty@(TypeVar v) -> case f v of Just ty' -> ty'; Nothing -> ty
+      ty@(TypeUnknown v) -> case f v of Just ty' -> ty'; Nothing -> ty
       TypeCon c typs -> TypeCon c (map trav typs)
       ty1 :-> ty2 -> trav ty1 :-> trav ty2
 
-newtype TVar = TVar { unTVar :: String } deriving (Eq,Ord,Show)
-instance IsString TVar where fromString = TVar
-instance Pretty TVar where pretty = unTVar
+newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)
+instance Pretty UniVar where pretty (UniVar i) = show i
 
 data TypeError = TypeError String deriving Show
 instance Pretty TypeError where pretty (TypeError s) = s

@@ -6,13 +6,13 @@
 [2] false
 :: Bool
 [3] \x -> x
-:: (t0->t0)
+:: (0->0)
 [4] \f -> f
-:: (t0->t0)
+:: (0->0)
 [5] \x -> \y -> x
-:: (t0->(t1->t0))
+:: (0->(1->0))
 [6] \x -> \y -> y
-:: (t0->(t1->t1))
+:: (0->(1->1))
 [7] (\x -> x) 42
 :: Int
 [8] (\x -> x) true
@@ -22,7 +22,7 @@
 [10] let x = 42 in x
 :: Int
 [11] let f = \x -> x in f
-:: (t2->t2)
+:: (2->2)
 [12] let id = \x -> x in id 42
 :: Int
 [13] let id = \x -> x in id true
@@ -38,33 +38,33 @@
 [18] let pair = \x -> \y -> (x, y) in pair 42 true
 :: (Int,Bool)
 [19] \f -> \x -> f x
-:: ((t1->t2)->(t1->t2))
+:: ((1->2)->(1->2))
 [20] \f -> \x -> f (f x)
-:: ((t1->t1)->(t1->t1))
+:: ((1->1)->(1->1))
 [21] \f -> \g -> \x -> f (g x)
-:: ((t4->t3)->((t2->t4)->(t2->t3)))
+:: ((4->3)->((2->4)->(2->3)))
 [22] let twice = \f -> \x -> f (f x) in twice
-:: ((t3->t3)->(t3->t3))
+:: ((3->3)->(3->3))
 [23] let compose = \f -> \g -> \x -> f (g x) in compose
-:: ((t6->t5)->((t4->t6)->(t4->t5)))
+:: ((6->5)->((4->6)->(4->5)))
 [24] let k = \x -> \y -> x in k
-:: (t2->(t3->t2))
+:: (2->(3->2))
 [25] let s = \f -> \g -> \x -> f x (g x) in s
-:: ((t4->(t7->t5))->((t4->t7)->(t4->t5)))
+:: ((4->(7->5))->((4->7)->(4->5)))
 [26] let y = \f -> (\x -> f (x x)) (\x -> f (x x)) in y
 **type error: occurs
 [27] let id = \x -> x in (id, id)
-:: ((t2->t2),(t2->t2))
+:: ((2->2),(2->2))
 [28] let const = \x -> \y -> x in const
-:: (t2->(t3->t2))
+:: (2->(3->2))
 [29] let flip = \f -> \x -> \y -> f y x in flip
-:: ((t4->(t3->t5))->(t3->(t4->t5)))
+:: ((4->(3->5))->(3->(4->5)))
 [30] \x -> x x
 **type error: occurs
 [31] (\x -> x x) (\x -> x x)
 **type error: occurs
 [32] \a b c -> let f x = x in (f (a,b), f (c,1))
-:: (t0->(Int->(t0->((t0,Int),(t0,Int)))))
+:: (0->(Int->(0->((0,Int),(0,Int)))))
 [33] \f -> (f 1, f true)
 **type error: Int ~ Bool
 [34] \f -> (f 1, f (2,3))
@@ -72,6 +72,6 @@
 [35] \f -> (f (1,2), f (3,4,5))
 **type error: (Int,Int) ~ (Int,Int,Int)
 [36] \f a -> (f (a,a), f (a,a,a))
-**type error: (t1,t1) ~ (t1,t1,t1)
+**type error: (1,1) ~ (1,1,1)
 [37] \x -> 1 x
-**type error: Int ~ (t0->t1)
+**type error: Int ~ (0->1)
