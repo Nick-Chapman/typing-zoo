@@ -3,7 +3,6 @@ module Top (main) where
 import AST (Exp,Id,mkUserId)
 import AST qualified (Exp(..),Bid(..),Literal(..))
 import Control.Monad (ap,liftM)
-import Data.List (intercalate)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.String (IsString(fromString))
@@ -33,34 +32,39 @@ runExample (i,s) = do
   putStrLn $ "exp: " <> pretty exp
   runInferTypeOfExp exp >>= \case
         Left err -> putStrLn ("**type error: " <> pretty err)
-        Right ty -> putStrLn ("type: " <> pretty ty)
+        Right (d@(Derivation (J _ _ ty) _)) -> do
+          putStrLn ("type: " <> pretty ty)
+          putStrLn ("derivation: " <> pretty d)
 
-runInferTypeOfExp :: Exp -> IO (Either TypeError Type)
+runInferTypeOfExp :: Exp -> IO (Either TypeError Derivation)
 runInferTypeOfExp exp = do
   runInfer $ do
-    typeExp ctx0 exp >>= refine
+    d <- typeExp ctx0 exp
+    refineDerivation d
 
-typeExp :: Ctx -> Exp -> Infer Type
-typeExp ctx = \case
+typeExp :: Ctx -> Exp -> Infer Derivation
+typeExp ctx exp = case exp of
   AST.Lam _pos (AST.Bid _ x) body -> do
     let Ctx{xmap} = ctx
-    tyArg <- TypeVar <$> IFresh
+    tyArg <- TypeVar <$> IFresh (pretty x)
     let ctx1 = ctx { xmap = Map.insert x tyArg xmap }
-    tyRes <- typeExp ctx1 body
-    pure (tyArg :-> tyRes)
+    d1@(Derivation (J _ _ tyRes) _) <- typeExp ctx1 body
+    let tyFun = (tyArg :-> tyRes)
+    pure $ Derivation (J ctx exp tyFun) [d1]
   AST.App fun _pos arg -> do
-    tyRes <- TypeVar <$> IFresh
-    tyFun <- typeExp ctx fun
-    tyArg <- typeExp ctx arg
+    tyRes <- TypeVar <$> IFresh (pretty exp)
+    d1@(Derivation (J _ _ tyFun) _) <- typeExp ctx fun
+    d2@(Derivation (J _ _ tyArg) _) <- typeExp ctx arg
     unifyTy tyFun (tyArg :-> tyRes)
-    pure tyRes
+    pure $ Derivation (J ctx exp tyRes) [d1,d2]
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
     let err = error ("typeExp/EVar" <> pretty x)
-    pure $ maybe err id $ Map.lookup x xmap
+    let ty = maybe err id $ Map.lookup x xmap
+    pure $ Derivation (J ctx exp ty) []
   AST.Lit _pos  lit ->
     case lit of
-      AST.LitN{} -> pure TypeInt
+      AST.LitN{} -> pure $ Derivation (J ctx exp TypeInt) []
       AST.LitC{} -> undefined
       AST.LitS{} -> undefined
   AST.RecLam{} -> do
@@ -68,7 +72,42 @@ typeExp ctx = \case
   AST.Let{} -> do
     undefined
 
+
+refineDerivation :: Derivation -> Infer Derivation
+refineDerivation d = do
+  subst <- ICurrentSubst
+  let f ty = refineTypeWithSubst ty subst
+  pure $ mapTypeInDerivation f d
+
+data Derivation = Derivation Judgement [Derivation]
+data Judgement = J Ctx Exp Type
+
+instance Pretty Derivation where
+  pretty d = loop 0 d
+    where
+      loop :: Int -> Derivation -> String
+      loop n (Derivation j ds) = do
+        let tab = replicate (2*n) ' '
+        concat (map (loop (n+1)) ds) <> "\n" <> tab <> pretty j
+
+instance Pretty Judgement where
+  pretty (J ctx exp typ) =
+    pretty ctx <> " |= " <> pretty exp <> " :: " <> pretty typ
+
+mapTypeInDerivation :: (Type -> Type) -> Derivation -> Derivation
+mapTypeInDerivation f (Derivation j ds) =
+  Derivation (mapTypeInJudgement f j) (map (mapTypeInDerivation f) ds)
+
+mapTypeInJudgement :: (Type -> Type) -> Judgement -> Judgement
+mapTypeInJudgement f (J ctx exp ty) =
+  J (mapTypeInCtx f ctx) exp (f ty)
+
+mapTypeInCtx :: (Type -> Type) -> Ctx -> Ctx
+mapTypeInCtx f Ctx{xmap} = Ctx { xmap = Map.map f xmap }
+
 data Ctx = Ctx { xmap :: Map Id Type }
+instance Pretty Ctx where pretty Ctx{xmap=m} = pretty m
+
 ctx0 :: Ctx
 ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
   where
@@ -81,6 +120,7 @@ unifyTy :: Type -> Type -> Infer ()
 unifyTy ty1 ty2 = do
   ty1 <- refine ty1
   ty2 <- refine ty2
+  IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
   unify (ty1,ty2)
   where
     mismatch = undefined
@@ -98,7 +138,7 @@ unifyTy ty1 ty2 = do
         unify (b,d)
 
 refine :: Type -> Infer Type
-refine ty = refineWithSubst ty <$> ICurrentSubst
+refine ty = refineTypeWithSubst ty <$> ICurrentSubst
 
 subTy :: TVar -> Type -> Infer ()
 subTy v ty = if v `occurs` ty then IFail "occurs" else ISub v ty
@@ -110,10 +150,11 @@ instance Monad Infer where (>>=) = IBind
 data Infer a where
   IPure :: a -> Infer a
   IBind :: Infer a -> (a -> Infer b) -> Infer b
-  IFresh :: Infer TVar
+  IFresh :: String -> Infer TVar
   ISub :: TVar -> Type -> Infer ()
   IFail :: String -> Infer ()
   ICurrentSubst :: Infer Subst
+  IDebug :: String -> Infer ()
 
 type IRes a = Either TypeError a
 
@@ -124,16 +165,19 @@ runInfer infer = loop state0 infer \_s a -> pure (Right a)
     loop s = \case
       IPure a -> \k -> k s a
       IBind m g -> \k -> loop s m \s a -> loop s (g a) k
-      IFresh -> \k -> do
+      IDebug mes -> \k -> do
+        putStrLn mes
+        k s ()
+      IFresh who -> \k -> do
         let IState{u} = s
         let var = TVar ("t" <> show u)
-        --putStrLn ("fresh: -> " <> pretty var)
+        putStrLn $ "fresh(" <> who <> "): -> " <> pretty var
         k s { u = u + 1 } var
       ISub v ty -> \k -> do
-        --putStrLn ("sub: " <> pretty v <> "~>" <> pretty ty)
+        putStrLn ("sub: " <> pretty v <> " := " <> pretty ty)
         let IState{subst=subst0} = s
         let subst = subExtend subst0 v ty
-        --putStrLn ("subst: " <> pretty subst)
+        putStrLn ("subst: " <> pretty subst)
         k s { subst } ()
       IFail mes -> \_k -> do
         pure (Left (TypeError mes))
@@ -146,12 +190,7 @@ state0 :: IState
 state0 = IState { u = 0, subst = subst0 }
 
 data Subst = Subst { vmap :: Map TVar Type }
-
-instance Pretty Subst where
-  pretty Subst{vmap} =
-    "[" <> intercalate "," [ pretty v <> "~>" <> pretty ty
-                           | (v,ty) <- Map.toList vmap
-                           ] <> "]"
+instance Pretty Subst where pretty Subst{vmap=m} = pretty m
 
 subst0 :: Subst
 subst0 = Subst { vmap = Map.empty }
@@ -161,7 +200,7 @@ subExtend subst v ty = do
   let Subst{vmap = vmap0} = subst
   --let domain = Map.keys vmap0
   --if v `elem` domain then error "subExtend" else do
-  let ty' = refineWithSubst ty subst
+  let ty' = refineTypeWithSubst ty subst
   let f v' = if v == v' then Just ty' else Nothing
   let shifted = Map.map (specialize f) vmap0
   let vmap = Map.insert v ty' shifted
@@ -190,8 +229,8 @@ occurs v = loop
       TypeBool -> False
       ty1 :-> ty2 -> loop ty1 || loop ty2
 
-refineWithSubst :: Type -> Subst -> Type
-refineWithSubst ty Subst{vmap} = specialize (\v -> Map.lookup v vmap) ty
+refineTypeWithSubst :: Type -> Subst -> Type
+refineTypeWithSubst ty Subst{vmap} = specialize (\v -> Map.lookup v vmap) ty
 
 specialize :: (TVar -> Maybe Type) -> Type -> Type
 specialize f = trav
