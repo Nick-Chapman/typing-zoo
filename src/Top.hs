@@ -2,17 +2,16 @@ module Top (main) where
 
 import AST (Exp,Id,mkUserId)
 import AST qualified (Exp(..),Bid(..),Literal(..))
-import Control.Monad (ap,liftM)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Parser (parse)
 import Pretty (Pretty(..))
 import TypeF (TypeF(..),TCon(..))
+import Infer (Type(..),TypeError,Infer(..),getRefine,unify,runInfer)
 
 main :: IO ()
 main = do
   putStrLn "*typing-zoo*"
-  -- example 12 has wrong type
   xs <- zip [0..] . filterExamples . lines <$> readFile "basic.fun"
   mapM_ runExample xs
     where
@@ -30,8 +29,8 @@ runExample (i,s) = do
   --putStrLn $ "[" <> show i <> "] " <> pretty exp
   runInferTypeOfExp exp >>= \case
         Left err -> putStrLn ("**type error: " <> pretty err)
-        Right (_d@(Derivation (J _ _ ty) _)) -> do
-          putStrLn (":: " <> pretty ty)
+        Right (_d@(Derivation (J _ _ _ty) _)) -> do
+          putStrLn (":: " <> pretty _ty)
           --putStrLn ("derivation: " <> pretty _d)
 
 runInferTypeOfExp :: Exp -> IO (Either TypeError Derivation)
@@ -39,6 +38,11 @@ runInferTypeOfExp exp = do
   runInfer $ do
     d <- typeExp ctx0 exp
     refineDerivation d
+
+refineDerivation :: Derivation -> Infer Derivation
+refineDerivation d = do
+  refine <- getRefine
+  pure $ mapTypeInDerivation refine d
 
 typeExp :: Ctx -> Exp -> Infer Derivation
 typeExp ctx exp = case exp of
@@ -78,12 +82,20 @@ typeExp ctx exp = case exp of
     let typ = Type (TypeCon (TCon "Tuple") typs)
     pure $ Derivation (J ctx exp typ) ds
 
+data Ctx = Ctx { xmap :: Map Id Type }
+instance Pretty Ctx where pretty Ctx{xmap=m} = pretty m
 
-refineDerivation :: Derivation -> Infer Derivation
-refineDerivation d = do
-  subst <- ICurrentSubst
-  let f ty = refineTypeWithSubst ty subst
-  pure $ mapTypeInDerivation f d
+ctx0 :: Ctx
+ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
+  where
+    init =
+      [ ("true", typeBool)
+      , ("false", typeBool)
+      ]
+
+typeInt,typeBool :: Type
+typeInt = Type (TypeCon (TCon "Int") [])
+typeBool = Type (TypeCon (TCon "Bool") [])
 
 data Derivation = Derivation Judgement [Derivation]
 data Judgement = J Ctx Exp Type
@@ -110,134 +122,3 @@ mapTypeInJudgement f (J ctx exp ty) =
 
 mapTypeInCtx :: (Type -> Type) -> Ctx -> Ctx
 mapTypeInCtx f Ctx{xmap} = Ctx { xmap = Map.map f xmap }
-
-data Ctx = Ctx { xmap :: Map Id Type }
-instance Pretty Ctx where pretty Ctx{xmap=m} = pretty m
-
-ctx0 :: Ctx
-ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
-  where
-    init =
-      [ ("true", typeBool)
-      , ("false", typeBool)
-      ]
-
-unify :: Type -> Type -> Infer ()
-unify ty1 ty2 = do
-  ty1 <- refine ty1
-  ty2 <- refine ty2
-  IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
-  let mismatch = IFail (pretty ty1 <> " ~ " <> pretty ty2)
-  case (ty1,ty2) of
-    (ty, TypeUnknown v) -> subTy v ty
-    (TypeUnknown v, ty) -> subTy v ty
-    (Type (TypeCon c1 typs1), Type (TypeCon c2 typs2)) | c1==c2 -> do
-      if length typs1 /= length typs2 then mismatch else
-        sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
-    (Type (TypeCon{}), _) -> mismatch
-    (_, Type (TypeCon{})) -> mismatch
-    (Type (a :-> b), Type (c :-> d)) -> do
-      unify a c
-      unify b d
-
-refine :: Type -> Infer Type
-refine ty = refineTypeWithSubst ty <$> ICurrentSubst
-
-subTy :: UniVar -> Type -> Infer ()
-subTy v ty = if v `occurs` ty then IFail "occurs" else do
-  IDebug $ "sub: " <> pretty v <> " := " <> pretty ty
-  ISub v ty
-
-instance Functor Infer where fmap = liftM
-instance Applicative Infer where pure = IPure; (<*>) = ap
-instance Monad Infer where (>>=) = IBind
-
-data Infer a where
-  IPure :: a -> Infer a
-  IBind :: Infer a -> (a -> Infer b) -> Infer b
-  IFresh :: Infer UniVar
-  ISub :: UniVar -> Type -> Infer ()
-  IFail :: String -> Infer ()
-  ICurrentSubst :: Infer Subst
-  IDebug :: String -> Infer ()
-
-type IRes a = Either TypeError a
-
-runInfer :: Infer a -> IO (IRes a)
-runInfer infer = loop state0 infer \_s a -> pure (Right a)
-  where
-    loop :: IState -> Infer a -> (IState -> a -> IO (IRes b)) -> IO (IRes b)
-    loop s = \case
-      IPure a -> \k -> k s a
-      IBind m g -> \k -> loop s m \s a -> loop s (g a) k
-      IDebug _mes -> \k -> do
-        --putStrLn _mes
-        k s ()
-      IFresh -> \k -> do
-        let IState{u} = s
-        let var = UniVar u
-        k s { u = u + 1 } var
-      ISub v ty -> \k -> do
-        let IState{subst=subst0} = s
-        let subst = subExtend subst0 v ty
-        k s { subst } ()
-      IFail mes -> \_k -> do
-        pure (Left (TypeError mes))
-      ICurrentSubst -> \k -> do
-        let IState{subst} = s
-        k s subst
-
-data IState = IState { u :: Int, subst :: Subst }
-state0 :: IState
-state0 = IState { u = 0, subst = subst0 }
-
-data Subst = Subst { vmap :: Map UniVar Type }
-instance Pretty Subst where pretty Subst{vmap=m} = pretty m
-
-subst0 :: Subst
-subst0 = Subst { vmap = Map.empty }
-
-subExtend :: Subst -> UniVar -> Type -> Subst
-subExtend subst v ty = do
-  let Subst{vmap = vmap0} = subst
-  let ty' = refineTypeWithSubst ty subst
-  let f v' = if v == v' then Just ty' else Nothing
-  let shifted = Map.map (specialize f) vmap0
-  let vmap = Map.insert v ty' shifted
-  Subst {vmap}
-
-typeInt,typeBool :: Type
-typeInt = Type (TypeCon (TCon "Int") [])
-typeBool = Type (TypeCon (TCon "Bool") [])
-
-data Type
-  = Type (TypeF Type)
-  | TypeUnknown UniVar
-
-instance Pretty Type where
-  pretty = \case
-    TypeUnknown v -> pretty v
-    Type t -> pretty t
-
-occurs :: UniVar -> Type -> Bool
-occurs v = loop
-  where
-    loop = \case
-      TypeUnknown v' -> v == v'
-      Type t -> any loop t
-
-refineTypeWithSubst :: Type -> Subst -> Type
-refineTypeWithSubst ty Subst{vmap} = specialize (\v -> Map.lookup v vmap) ty
-
-specialize :: (UniVar -> Maybe Type) -> Type -> Type
-specialize f = trav
-  where
-    trav = \case
-      ty@(TypeUnknown v) -> case f v of Just ty' -> ty'; Nothing -> ty
-      Type t -> Type (fmap trav t)
-
-newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)
-instance Pretty UniVar where pretty (UniVar i) = show i
-
-data TypeError = TypeError String deriving Show
-instance Pretty TypeError where pretty (TypeError s) = s
