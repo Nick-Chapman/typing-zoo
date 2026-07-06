@@ -44,13 +44,15 @@ typeExp :: Ctx -> Exp -> Infer Derivation
 typeExp ctx exp = case exp of
   AST.Lam _pos (AST.Bid _ x) body -> do
     let Ctx{xmap} = ctx
-    typArg <- TypeUnknown <$> IFresh (pretty x)
+    typArg <- TypeUnknown <$> IFresh
+    IDebug $ "fresh(" <> pretty x <> "): -> " <> pretty typArg
     let ctx1 = ctx { xmap = Map.insert x typArg xmap }
     d1@(Derivation (J _ _ typRes) _) <- typeExp ctx1 body
     let typFun = Type (typArg :-> typRes)
     pure $ Derivation (J ctx exp typFun) [d1]
   AST.App fun _pos arg -> do
-    typRes <- TypeUnknown <$> IFresh (pretty exp)
+    typRes <- TypeUnknown <$> IFresh
+    IDebug $ "fresh(" <> pretty exp <> "): -> " <> pretty typRes
     d1@(Derivation (J _ _ typFun) _) <- typeExp ctx fun
     d2@(Derivation (J _ _ typArg) _) <- typeExp ctx arg
     unify typFun (Type (typArg :-> typRes))
@@ -124,7 +126,7 @@ unify :: Type -> Type -> Infer ()
 unify ty1 ty2 = do
   ty1 <- refine ty1
   ty2 <- refine ty2
-  --IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
+  IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
   let mismatch = IFail (pretty ty1 <> " ~ " <> pretty ty2)
   case (ty1,ty2) of
     (ty, TypeUnknown v) -> subTy v ty
@@ -142,7 +144,9 @@ refine :: Type -> Infer Type
 refine ty = refineTypeWithSubst ty <$> ICurrentSubst
 
 subTy :: UniVar -> Type -> Infer ()
-subTy v ty = if v `occurs` ty then IFail "occurs" else ISub v ty
+subTy v ty = if v `occurs` ty then IFail "occurs" else do
+  IDebug $ "sub: " <> pretty v <> " := " <> pretty ty
+  ISub v ty
 
 instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
@@ -151,7 +155,7 @@ instance Monad Infer where (>>=) = IBind
 data Infer a where
   IPure :: a -> Infer a
   IBind :: Infer a -> (a -> Infer b) -> Infer b
-  IFresh :: String -> Infer UniVar
+  IFresh :: Infer UniVar
   ISub :: UniVar -> Type -> Infer ()
   IFail :: String -> Infer ()
   ICurrentSubst :: Infer Subst
@@ -166,19 +170,16 @@ runInfer infer = loop state0 infer \_s a -> pure (Right a)
     loop s = \case
       IPure a -> \k -> k s a
       IBind m g -> \k -> loop s m \s a -> loop s (g a) k
-      IDebug mes -> \k -> do
-        putStrLn mes
+      IDebug _mes -> \k -> do
+        --putStrLn _mes
         k s ()
-      IFresh _who -> \k -> do
+      IFresh -> \k -> do
         let IState{u} = s
         let var = UniVar u
-        --putStrLn $ "fresh(" <> _who <> "): -> " <> pretty var
         k s { u = u + 1 } var
       ISub v ty -> \k -> do
-        --putStrLn ("sub: " <> pretty v <> " := " <> pretty ty)
         let IState{subst=subst0} = s
         let subst = subExtend subst0 v ty
-        --putStrLn ("subst: " <> pretty subst)
         k s { subst } ()
       IFail mes -> \_k -> do
         pure (Left (TypeError mes))
