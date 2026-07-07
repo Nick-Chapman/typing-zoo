@@ -7,7 +7,7 @@ import Data.Map qualified as Map
 import Parser (parse)
 import Pretty (Pretty(..))
 import TypeF (TypeF(..),TCon(..))
-import Infer (Type(..),TypeError,Infer(..),getRefine,unify,runInfer)
+import Infer (IType(..),TypeError,Infer(..),getRefine,unify,runInfer)
 
 main :: IO ()
 main = do
@@ -32,28 +32,28 @@ runExample (i,s) = do
     Right ty -> do
       putStrLn (":: " <> pretty ty)
 
-runInferTypeOfExp :: Exp -> IO (Either TypeError Type)
+runInferTypeOfExp :: Exp -> IO (Either TypeError IType)
 runInferTypeOfExp exp = do
   runInfer $ do
     t <- typeExp ctx0 exp
     refine <- getRefine
     pure (refine t)
 
-typeExp :: Ctx -> Exp -> Infer Type
+typeExp :: Ctx -> Exp -> Infer IType
 typeExp ctx exp = case exp of
   AST.Lam _pos (AST.Bid _ x) body -> do
     let Ctx{xmap} = ctx
-    typArg <- TypeUnknown <$> IFresh
+    typArg <- ITypeUnknown <$> IFresh
     IDebug $ "fresh(" <> pretty x <> "): -> " <> pretty typArg
     let ctx1 = ctx { xmap = Map.insert x typArg xmap }
     typRes <- typeExp ctx1 body
-    pure $ Type (typArg :-> typRes)
+    pure $ IType (typArg :-> typRes)
   AST.App fun _pos arg -> do
-    typRes <- TypeUnknown <$> IFresh
+    typRes <- ITypeUnknown <$> IFresh
     IDebug $ "fresh(" <> pretty exp <> "): -> " <> pretty typRes
     typFun <- typeExp ctx fun
     typArg <- typeExp ctx arg
-    unify typFun (Type (typArg :-> typRes))
+    unify typFun (IType (typArg :-> typRes))
     pure typRes
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
@@ -71,9 +71,9 @@ typeExp ctx exp = case exp of
     typeExp ctx appliedAbstraction
   AST.Tuple es -> do
     typs <- mapM (typeExp ctx) es
-    pure $ Type (TypeCon (TCon "Tuple") typs)
+    pure $ IType (TypeCon (TCon "Tuple") typs)
 
-data Ctx = Ctx { xmap :: Map Id Type }
+data Ctx = Ctx { xmap :: Map Id IType }
 instance Pretty Ctx where pretty Ctx{xmap=m} = pretty m
 
 ctx0 :: Ctx
@@ -84,6 +84,6 @@ ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
       , ("false", typeBool)
       ]
 
-typeInt,typeBool :: Type
-typeInt = Type (TypeCon (TCon "Int") [])
-typeBool = Type (TypeCon (TCon "Bool") [])
+typeInt,typeBool :: IType
+typeInt = IType (TypeCon (TCon "Int") [])
+typeBool = IType (TypeCon (TCon "Bool") [])
