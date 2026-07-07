@@ -2,7 +2,7 @@ module TypeF
   ( TypeF(..)
   , TCon(..)
   , TVar(..)
-  , FixType(..)
+  , MType(..)
   , TypeScheme
   , mkScheme
   ) where
@@ -12,7 +12,7 @@ import Pretty (Pretty(..))
 
 data TypeF t
   = TypeCon TCon [t]
-  | TypeVar TVar -- NICK: maybe this shouldn't be here, but in FixType
+  | TypeVar TVar -- NICK: maybe this shouldn't be here, but in MType
   | t :-> t
   deriving (Foldable, Functor)
 
@@ -30,27 +30,28 @@ instance Pretty TCon where pretty (TCon s) = s
 newtype TVar = TVar { unTVar :: Int } deriving (Eq,Ord,Show)
 instance Pretty TVar where pretty (TVar i) = "" <> show i
 
-data FixType = FixType (TypeF FixType)
+data MType
+  = MTypeFix (TypeF MType)
 
-instance Pretty FixType where
+instance Pretty MType where
   pretty = \case
-    FixType t -> pretty t
+    MTypeFix t -> pretty t
 
 data TypeScheme = TypeScheme
   { bound :: [TVar]
-  , body :: FixType
+  , body :: MType
   }
 
-mkScheme :: FixType -> TypeScheme
+mkScheme :: MType -> TypeScheme
 mkScheme t = TypeScheme { bound = collectTVars t, body = t }
 
-collectTVars :: FixType -> [TVar]
+collectTVars :: MType -> [TVar]
 collectTVars = nub . collect []
   where
     collect acc = \case
-      FixType (TypeVar v) -> v:acc
-      FixType (TypeCon _ ts) -> collects acc ts
-      FixType (arg :-> res) -> collect (collect acc res) arg
+      MTypeFix (TypeVar v) -> v:acc
+      MTypeFix (TypeCon _ ts) -> collects acc ts
+      MTypeFix (arg :-> res) -> collect (collect acc res) arg
     collects acc = \case
       [] -> acc
       t1:ts -> collect (collects acc ts) t1

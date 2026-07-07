@@ -12,7 +12,7 @@ import Control.Monad (ap,liftM)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Pretty (Pretty(..))
-import TypeF (TypeF(..),TCon(..),TVar(..),FixType(..),TypeScheme,mkScheme)
+import TypeF (TypeF(..),TCon(..),TVar(..),MType(..),TypeScheme,mkScheme)
 
 instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
@@ -154,5 +154,5 @@ generalizeType :: IType -> TypeScheme
 generalizeType = mkScheme . trav
   where
     trav = \case
-      ITypeUnknown (UniVar u) -> FixType (TypeVar (TVar u))
-      ITypeFix t -> FixType (fmap trav t)
+      ITypeUnknown (UniVar u) -> MTypeFix (TypeVar (TVar u))
+      ITypeFix t -> MTypeFix (fmap trav t)
