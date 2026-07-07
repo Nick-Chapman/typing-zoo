@@ -6,7 +6,8 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Parser (parse)
 import Pretty (Pretty(..))
-import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine,runInfer)
+import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine1,getRefine2,runInfer)
+import TypeF (FixType)
 
 main :: IO ()
 main = do
@@ -31,11 +32,12 @@ runExample (i,s) = do
     Right ty -> do
       putStrLn (":: " <> pretty ty)
 
-runInferTypeOfExp :: Exp -> IO (Either TypeError IType)
+runInferTypeOfExp :: Exp -> IO (Either TypeError FixType)
 runInferTypeOfExp exp = do
   runInfer $ do
     t <- typeExp ctx0 exp
-    refine <- getRefine
+    _refine <- getRefine1
+    refine <- getRefine2
     pure (refine t)
 
 typeExp :: Ctx -> Exp -> Infer IType

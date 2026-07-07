@@ -3,7 +3,7 @@ module Infer
   , typeInt, typeBool, tuple, (-->)
   , Infer(..)
   , unify
-  , getRefine
+  , getRefine1, getRefine2
   , runInfer
   , TypeError
   ) where
@@ -12,7 +12,7 @@ import Control.Monad (ap,liftM)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Pretty (Pretty(..))
-import TypeF (TypeF(..),TCon(..))
+import TypeF (TypeF(..),TCon(..),TVar(..),FixType(..))
 
 instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
@@ -49,6 +49,8 @@ unify ty1 ty2 = do
   case (ty1,ty2) of
     (ty, ITypeUnknown v) -> subTy v ty
     (ITypeUnknown v, ty) -> subTy v ty
+    (ITypeFix TypeVar{}, _) -> error "unify/TypeVar1"
+    (_, ITypeFix TypeVar{}) -> error "unify/TypeVar2"
     (ITypeFix (TypeCon c1 typs1), ITypeFix (TypeCon c2 typs2)) | c1==c2 -> do
       if length typs1 /= length typs2 then mismatch else
         sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
@@ -59,7 +61,7 @@ unify ty1 ty2 = do
       unify b d
 
 refine :: IType -> Infer IType
-refine ty = do f <- getRefine; pure (f ty)
+refine ty = do f <- getRefine1; pure (f ty)
 
 subTy :: UniVar -> IType -> Infer ()
 subTy v ty = if v `occurs` ty then IFail "occurs" else do
@@ -73,10 +75,13 @@ occurs v = loop
       ITypeUnknown v' -> v == v'
       ITypeFix t -> any loop t
 
-getRefine :: Infer (IType -> IType)
-getRefine = do
+getRefine1 :: Infer (IType -> IType)
+getRefine1 = do
   subst <- ICurrentSubst
   pure (refineTypeWithSubst subst)
+
+getRefine2 :: Infer (IType -> FixType)
+getRefine2 = (fixType . ) <$>  getRefine1
 
 data Infer a where
   IPure :: a -> Infer a
@@ -144,3 +149,10 @@ specialize f = trav
     trav = \case
       ty@(ITypeUnknown v) -> case f v of Just ty' -> ty'; Nothing -> ty
       ITypeFix t -> ITypeFix (fmap trav t)
+
+fixType :: IType -> FixType
+fixType = trav
+  where
+    trav = \case
+      ITypeUnknown (UniVar u) -> FixType (TypeVar (TVar u))
+      ITypeFix t -> FixType (fmap trav t)
