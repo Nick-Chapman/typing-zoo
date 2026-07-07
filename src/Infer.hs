@@ -12,7 +12,7 @@ import Control.Monad (ap,liftM)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Pretty (Pretty(..))
-import TypeF (TypeF(..),TCon(..),TVar(..),FixType(..))
+import TypeF (TypeF(..),TCon(..),TVar(..),FixType(..),TypeScheme,mkScheme)
 
 instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
@@ -80,8 +80,8 @@ getRefine1 = do
   subst <- ICurrentSubst
   pure (refineTypeWithSubst subst)
 
-getRefine2 :: Infer (IType -> FixType)
-getRefine2 = (fixType . ) <$>  getRefine1
+getRefine2 :: Infer (IType -> TypeScheme)
+getRefine2 = (generalizeType . ) <$>  getRefine1
 
 data Infer a where
   IPure :: a -> Infer a
@@ -150,8 +150,8 @@ specialize f = trav
       ty@(ITypeUnknown v) -> case f v of Just ty' -> ty'; Nothing -> ty
       ITypeFix t -> ITypeFix (fmap trav t)
 
-fixType :: IType -> FixType
-fixType = trav
+generalizeType :: IType -> TypeScheme
+generalizeType = mkScheme . trav
   where
     trav = \case
       ITypeUnknown (UniVar u) -> FixType (TypeVar (TVar u))

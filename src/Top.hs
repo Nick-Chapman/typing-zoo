@@ -7,7 +7,7 @@ import Data.Map qualified as Map
 import Parser (parse)
 import Pretty (Pretty(..))
 import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine1,getRefine2,runInfer)
-import TypeF (FixType)
+import TypeF (TypeScheme)
 
 main :: IO ()
 main = do
@@ -32,7 +32,7 @@ runExample (i,s) = do
     Right ty -> do
       putStrLn (":: " <> pretty ty)
 
-runInferTypeOfExp :: Exp -> IO (Either TypeError FixType)
+runInferTypeOfExp :: Exp -> IO (Either TypeError TypeScheme)
 runInferTypeOfExp exp = do
   runInfer $ do
     t <- typeExp ctx0 exp
