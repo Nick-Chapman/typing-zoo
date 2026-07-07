@@ -1,21 +1,44 @@
 module Infer
-  ( IType(..)
-  , TypeError
+  ( IType
+  , typeInt, typeBool, tuple, (-->)
   , Infer(..)
   , unify
   , getRefine
   , runInfer
+  , TypeError
   ) where
 
 import Control.Monad (ap,liftM)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Pretty (Pretty(..))
-import TypeF (TypeF(..))
+import TypeF (TypeF(..),TCon(..))
 
 instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
 instance Monad Infer where (>>=) = IBind
+
+typeInt,typeBool :: IType
+typeInt = ITypeFix (TypeCon (TCon "Int") [])
+typeBool = ITypeFix (TypeCon (TCon "Bool") [])
+
+tuple :: [IType] -> IType
+tuple ts = ITypeFix (TypeCon (TCon "Tuple") ts)
+
+(-->) :: IType -> IType -> IType
+(-->) a b = ITypeFix (a :-> b)
+
+data IType
+  = ITypeFix (TypeF IType)
+  | ITypeUnknown UniVar
+
+instance Pretty IType where
+  pretty = \case
+    ITypeUnknown v -> pretty v
+    ITypeFix t -> pretty t
+
+newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)
+instance Pretty UniVar where pretty (UniVar i) = show i
 
 unify :: IType -> IType -> Infer ()
 unify ty1 ty2 = do
@@ -26,38 +49,48 @@ unify ty1 ty2 = do
   case (ty1,ty2) of
     (ty, ITypeUnknown v) -> subTy v ty
     (ITypeUnknown v, ty) -> subTy v ty
-    (IType (TypeCon c1 typs1), IType (TypeCon c2 typs2)) | c1==c2 -> do
+    (ITypeFix (TypeCon c1 typs1), ITypeFix (TypeCon c2 typs2)) | c1==c2 -> do
       if length typs1 /= length typs2 then mismatch else
         sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
-    (IType (TypeCon{}), _) -> mismatch
-    (_, IType (TypeCon{})) -> mismatch
-    (IType (a :-> b), IType (c :-> d)) -> do
+    (ITypeFix (TypeCon{}), _) -> mismatch
+    (_, ITypeFix (TypeCon{})) -> mismatch
+    (ITypeFix (a :-> b), ITypeFix (c :-> d)) -> do
       unify a c
       unify b d
 
 refine :: IType -> Infer IType
 refine ty = do f <- getRefine; pure (f ty)
 
-getRefine :: Infer (IType -> IType)
-getRefine = do
-  subst <- ICurrentSubst
-  pure (refineTypeWithSubst subst)
-
 subTy :: UniVar -> IType -> Infer ()
 subTy v ty = if v `occurs` ty then IFail "occurs" else do
   IDebug $ "sub: " <> pretty v <> " := " <> pretty ty
   ISub v ty
 
+occurs :: UniVar -> IType -> Bool
+occurs v = loop
+  where
+    loop = \case
+      ITypeUnknown v' -> v == v'
+      ITypeFix t -> any loop t
+
+getRefine :: Infer (IType -> IType)
+getRefine = do
+  subst <- ICurrentSubst
+  pure (refineTypeWithSubst subst)
+
 data Infer a where
   IPure :: a -> Infer a
   IBind :: Infer a -> (a -> Infer b) -> Infer b
-  IFresh :: Infer UniVar
+  IFresh :: Infer IType
   ISub :: UniVar -> IType -> Infer ()
   IFail :: String -> Infer ()
   ICurrentSubst :: Infer Subst
   IDebug :: String -> Infer ()
 
 type IRes a = Either TypeError a
+
+data TypeError = TypeError String deriving Show
+instance Pretty TypeError where pretty (TypeError s) = s
 
 runInfer :: Infer a -> IO (IRes a)
 runInfer infer = loop state0 infer \_s a -> pure (Right a)
@@ -72,7 +105,7 @@ runInfer infer = loop state0 infer \_s a -> pure (Right a)
       IFresh -> \k -> do
         let IState{u} = s
         let var = UniVar u
-        k s { u = u + 1 } var
+        k s { u = u + 1 } (ITypeUnknown var)
       ISub v ty -> \k -> do
         let IState{subst=subst0} = s
         let subst = subExtend subst0 v ty
@@ -102,22 +135,6 @@ subExtend subst v ty = do
   let vmap = Map.insert v ty' shifted
   Subst {vmap}
 
-data IType
-  = IType (TypeF IType)
-  | ITypeUnknown UniVar
-
-instance Pretty IType where
-  pretty = \case
-    ITypeUnknown v -> pretty v
-    IType t -> pretty t
-
-occurs :: UniVar -> IType -> Bool
-occurs v = loop
-  where
-    loop = \case
-      ITypeUnknown v' -> v == v'
-      IType t -> any loop t
-
 refineTypeWithSubst :: Subst -> IType -> IType
 refineTypeWithSubst Subst{vmap} ty = specialize (\v -> Map.lookup v vmap) ty
 
@@ -126,10 +143,4 @@ specialize f = trav
   where
     trav = \case
       ty@(ITypeUnknown v) -> case f v of Just ty' -> ty'; Nothing -> ty
-      IType t -> IType (fmap trav t)
-
-newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)
-instance Pretty UniVar where pretty (UniVar i) = show i
-
-data TypeError = TypeError String deriving Show
-instance Pretty TypeError where pretty (TypeError s) = s
+      ITypeFix t -> ITypeFix (fmap trav t)
