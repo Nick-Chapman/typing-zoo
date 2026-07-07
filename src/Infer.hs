@@ -49,8 +49,6 @@ unify ty1 ty2 = do
   case (ty1,ty2) of
     (ty, ITypeUnknown v) -> subTy v ty
     (ITypeUnknown v, ty) -> subTy v ty
-    (ITypeFix TypeVar{}, _) -> error "unify/TypeVar1"
-    (_, ITypeFix TypeVar{}) -> error "unify/TypeVar2"
     (ITypeFix (TypeCon c1 typs1), ITypeFix (TypeCon c2 typs2)) | c1==c2 -> do
       if length typs1 /= length typs2 then mismatch else
         sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]
@@ -154,5 +152,5 @@ generalizeType :: IType -> TypeScheme
 generalizeType = mkScheme . trav
   where
     trav = \case
-      ITypeUnknown (UniVar u) -> MTypeFix (TypeVar (TVar u))
+      ITypeUnknown (UniVar u) -> MTypeVar (TVar u)
       ITypeFix t -> MTypeFix (fmap trav t)

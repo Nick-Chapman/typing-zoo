@@ -12,14 +12,12 @@ import Pretty (Pretty(..))
 
 data TypeF t
   = TypeCon TCon [t]
-  | TypeVar TVar -- NICK: maybe this shouldn't be here, but in MType
   | t :-> t
   deriving (Foldable, Functor)
 
 instance Pretty t => Pretty (TypeF t)  where
   pretty = \case
     TypeCon (TCon "Tuple") typs -> "(" <> intercalate "," (map pretty typs) <> ")"
-    TypeVar v -> pretty v
     TypeCon c [] -> pretty c
     TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pretty typs) <> ")"
     arg :-> res -> "(" <> pretty arg <> "->" <> pretty res <> ")"
@@ -27,15 +25,17 @@ instance Pretty t => Pretty (TypeF t)  where
 newtype TCon = TCon String deriving (Eq)
 instance Pretty TCon where pretty (TCon s) = s
 
+data MType
+  = MTypeFix (TypeF MType)
+  | MTypeVar TVar
+
 newtype TVar = TVar { unTVar :: Int } deriving (Eq,Ord,Show)
 instance Pretty TVar where pretty (TVar i) = "" <> show i
 
-data MType
-  = MTypeFix (TypeF MType)
-
-instance Pretty MType where
+instance Pretty MType where -- M for Mono
   pretty = \case
     MTypeFix t -> pretty t
+    MTypeVar v -> pretty v
 
 data TypeScheme = TypeScheme
   { bound :: [TVar]
@@ -49,7 +49,7 @@ collectTVars :: MType -> [TVar]
 collectTVars = nub . collect []
   where
     collect acc = \case
-      MTypeFix (TypeVar v) -> v:acc
+      MTypeVar v -> v:acc
       MTypeFix (TypeCon _ ts) -> collects acc ts
       MTypeFix (arg :-> res) -> collect (collect acc res) arg
     collects acc = \case
