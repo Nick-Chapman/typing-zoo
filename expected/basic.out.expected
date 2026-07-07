@@ -6,13 +6,13 @@
 [2] false
 :: forall . Bool
 [3] \x -> x
-:: forall 0. (0->0)
+:: forall a. (a->a)
 [4] \f -> f
-:: forall 0. (0->0)
+:: forall a. (a->a)
 [5] \x -> \y -> x
-:: forall 0 1. (0->(1->0))
+:: forall a b. (a->(b->a))
 [6] \x -> \y -> y
-:: forall 0 1. (0->(1->1))
+:: forall a b. (a->(b->b))
 [7] (\x -> x) 42
 :: forall . Int
 [8] (\x -> x) true
@@ -22,7 +22,7 @@
 [10] let x = 42 in x
 :: forall . Int
 [11] let f = \x -> x in f
-:: forall 2. (2->2)
+:: forall a. (a->a)
 [12] let id = \x -> x in id 42
 :: forall . Int
 [13] let id = \x -> x in id true
@@ -38,33 +38,33 @@
 [18] let pair = \x -> \y -> (x, y) in pair 42 true
 :: forall . (Int,Bool)
 [19] \f -> \x -> f x
-:: forall 1 2. ((1->2)->(1->2))
+:: forall a b. ((a->b)->(a->b))
 [20] \f -> \x -> f (f x)
-:: forall 1. ((1->1)->(1->1))
+:: forall a. ((a->a)->(a->a))
 [21] \f -> \g -> \x -> f (g x)
-:: forall 4 3 2. ((4->3)->((2->4)->(2->3)))
+:: forall a b c. ((a->b)->((c->a)->(c->b)))
 [22] let twice = \f -> \x -> f (f x) in twice
-:: forall 3. ((3->3)->(3->3))
+:: forall a. ((a->a)->(a->a))
 [23] let compose = \f -> \g -> \x -> f (g x) in compose
-:: forall 6 5 4. ((6->5)->((4->6)->(4->5)))
+:: forall a b c. ((a->b)->((c->a)->(c->b)))
 [24] let k = \x -> \y -> x in k
-:: forall 2 3. (2->(3->2))
+:: forall a b. (a->(b->a))
 [25] let s = \f -> \g -> \x -> f x (g x) in s
-:: forall 4 7 5. ((4->(7->5))->((4->7)->(4->5)))
+:: forall a b c. ((a->(b->c))->((a->b)->(a->c)))
 [26] let y = \f -> (\x -> f (x x)) (\x -> f (x x)) in y
 **type error: occurs
 [27] let id = \x -> x in (id, id)
-:: forall 2. ((2->2),(2->2))
+:: forall a. ((a->a),(a->a))
 [28] let const = \x -> \y -> x in const
-:: forall 2 3. (2->(3->2))
+:: forall a b. (a->(b->a))
 [29] let flip = \f -> \x -> \y -> f y x in flip
-:: forall 4 3 5. ((4->(3->5))->(3->(4->5)))
+:: forall a b c. ((a->(b->c))->(b->(a->c)))
 [30] \x -> x x
 **type error: occurs
 [31] (\x -> x x) (\x -> x x)
 **type error: occurs
 [32] \a b c -> let f x = x in (f (a,b), f (c,1))
-:: forall 0. (0->(Int->(0->((0,Int),(0,Int)))))
+:: forall a. (a->(Int->(a->((a,Int),(a,Int)))))
 [33] \f -> (f 1, f true)
 **type error: Int ~ Bool
 [34] \f -> (f 1, f (2,3))

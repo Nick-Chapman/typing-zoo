@@ -9,33 +9,31 @@ module TypeF
 
 import Data.List (intercalate,nub) -- quadratic nub
 import Pretty (Pretty(..))
+import Data.Map qualified as Map
 
 data TypeF t
   = TypeCon TCon [t]
   | t :-> t
   deriving (Foldable, Functor)
 
+prettyF :: (a -> String) -> TypeF a -> String
+prettyF pret = \case
+  TypeCon (TCon "Tuple") typs -> "(" <> intercalate "," (map pret typs) <> ")"
+  TypeCon c [] -> pretty c
+  TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pret typs) <> ")"
+  arg :-> res -> "(" <> pret arg <> "->" <> pret res <> ")"
+
 instance Pretty t => Pretty (TypeF t)  where
-  pretty = \case
-    TypeCon (TCon "Tuple") typs -> "(" <> intercalate "," (map pretty typs) <> ")"
-    TypeCon c [] -> pretty c
-    TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pretty typs) <> ")"
-    arg :-> res -> "(" <> pretty arg <> "->" <> pretty res <> ")"
+  pretty = prettyF pretty
 
 newtype TCon = TCon String deriving (Eq)
 instance Pretty TCon where pretty (TCon s) = s
 
-data MType
+data MType -- M for Mono
   = MTypeFix (TypeF MType)
   | MTypeVar TVar
 
 newtype TVar = TVar { unTVar :: Int } deriving (Eq,Ord,Show)
-instance Pretty TVar where pretty (TVar i) = "" <> show i
-
-instance Pretty MType where -- M for Mono
-  pretty = \case
-    MTypeFix t -> pretty t
-    MTypeVar v -> pretty v
 
 data TypeScheme = TypeScheme
   { bound :: [TVar]
@@ -57,6 +55,25 @@ collectTVars = nub . collect []
       t1:ts -> collect (collects acc ts) t1
 
 instance Pretty TypeScheme where
-  pretty = \TypeScheme {bound=_xs,body} ->
-    "forall " <> intercalate " " (map pretty _xs) <> ". " <>
-    pretty body
+  pretty scheme =
+    "forall " <> intercalate " " (map resolve bound) <> ". " <>
+    prettyM body
+
+    where
+      names =
+        [ [c] | c <- ['a'..'z'] ]
+        <> [ "t" <> show i | i <- [27::Int ..] ]
+
+      TypeScheme {bound,body} = scheme
+      mapping = Map.fromList (zip bound names)
+
+      resolve :: TVar -> String
+      resolve tv = maybe err id $ Map.lookup tv mapping
+        where err = error (show ("pretty/tscheme/resolve",tv))
+
+      --resolve (TVar u) = show u
+
+      prettyM :: MType -> String
+      prettyM = \case
+        MTypeFix t -> prettyF prettyM t
+        MTypeVar v -> resolve v
