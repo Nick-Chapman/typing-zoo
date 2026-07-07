@@ -57,5 +57,5 @@ collectTVars = nub . collect []
 
 instance Pretty TypeScheme where
   pretty = \TypeScheme {bound=_xs,body} ->
-    -- "forall " <> intercalate " " (map pretty _xs) <> ". " <>
+    "forall " <> intercalate " " (map pretty _xs) <> ". " <>
     pretty body
