@@ -6,7 +6,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Parser (parse)
 import Pretty (Pretty(..))
-import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine1,getRefine2,runInfer)
+import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine2,runInfer,ITypeScheme,generalize,instantiate,mono)
 import TypeF (TypeScheme)
 
 main :: IO ()
@@ -25,7 +25,8 @@ main = do
 runExample :: (Int,String) -> IO ()
 runExample (i,s) = do
   let exp = parse s
-  putStrLn $ "[" <> show i <> "] " <> s
+  let trim = reverse . dropWhile (==' ') . reverse
+  putStrLn $ "[" <> show i <> "] " <> trim s
   --putStrLn $ "[" <> show i <> "] " <> pretty exp
   runInferTypeOfExp exp >>= \case
     Left err -> putStrLn ("**type error: " <> pretty err)
@@ -36,7 +37,6 @@ runInferTypeOfExp :: Exp -> IO (Either TypeError TypeScheme)
 runInferTypeOfExp exp = do
   runInfer $ do
     t <- typeExp ctx0 exp
-    _refine <- getRefine1
     refine <- getRefine2
     pure (refine t)
 
@@ -46,7 +46,7 @@ typeExp ctx exp = case exp of
     let Ctx{xmap} = ctx
     arg <- IFresh
     IDebug $ "fresh(" <> pretty x <> "): -> " <> pretty arg
-    let ctx1 = ctx { xmap = Map.insert x arg xmap }
+    let ctx1 = ctx { xmap = Map.insert x (mono arg) xmap }
     ret <- typeExp ctx1 body
     pure $ (arg --> ret)
   AST.App e1 _pos e2 -> do
@@ -59,26 +59,30 @@ typeExp ctx exp = case exp of
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
     let err = error ("typeExp/EVar" <> pretty x)
-    pure $ maybe err id $ Map.lookup x xmap
+    let scheme = maybe err id $ Map.lookup x xmap
+    instantiate scheme
   AST.Lit _pos  lit ->
     case lit of
       AST.LitN{} -> pure typeInt
       AST.LitC{} -> undefined
       AST.LitS{} -> undefined
   AST.RecLam{} -> undefined
-  AST.Let pos x rhs body -> do -- temp; prior to support generalization
-    let func = AST.Lam pos x body
-    let appliedAbstraction = AST.App func pos rhs
-    typeExp ctx appliedAbstraction
+  AST.Let _p1 (AST.Bid _p2 x) eRhs eBody -> do
+    rhs <- typeExp ctx eRhs
+    let Ctx{xmap} = ctx
+    let ss :: [ITypeScheme] = [ s | (_,s) <- Map.toList xmap ]
+    tScheme <- generalize ss rhs
+    let ctx1 = ctx { xmap = Map.insert x tScheme xmap }
+    typeExp ctx1 eBody
   AST.Tuple es -> do
     ts <- mapM (typeExp ctx) es
     pure $ tuple ts
 
-data Ctx = Ctx { xmap :: Map Id IType }
+data Ctx = Ctx { xmap :: Map Id ITypeScheme }
 instance Pretty Ctx where pretty Ctx{xmap=m} = pretty m
 
 ctx0 :: Ctx
-ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, ty) | (x,ty) <- init ] }
+ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, mono ty) | (x,ty) <- init ] }
   where
     init =
       [ ("true", typeBool)

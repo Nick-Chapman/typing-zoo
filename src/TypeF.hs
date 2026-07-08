@@ -56,8 +56,11 @@ collectTVars = nub . collect []
 
 instance Pretty TypeScheme where
   pretty scheme =
-    "forall " <> intercalate " " (map resolve bound) <> ". " <>
-    prettyM body
+    case bound of
+      [] -> prettyM body
+      _:_ ->
+        "forall " <> intercalate " " (map resolve bound) <> ". " <>
+        prettyM body
 
     where
       names =

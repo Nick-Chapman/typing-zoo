@@ -3,9 +3,13 @@ module Infer
   , typeInt, typeBool, tuple, (-->)
   , Infer(..)
   , unify
-  , getRefine1, getRefine2
+  , getRefine2
   , runInfer
   , TypeError
+  , ITypeScheme
+  , mono
+  , generalize
+  , instantiate
   ) where
 
 import Control.Monad (ap,liftM)
@@ -13,6 +17,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Pretty (Pretty(..))
 import TypeF (TypeF(..),TCon(..),TVar(..),MType(..),TypeScheme,mkScheme)
+import Data.List (intercalate,nub, (\\)) -- quadratic nub
 
 instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
@@ -154,3 +159,47 @@ generalizeType = mkScheme . trav
     trav = \case
       ITypeUnknown (UniVar u) -> MTypeVar (TVar u)
       ITypeFix t -> MTypeFix (fmap trav t)
+
+----------------------------------------------------------------------
+
+data ITypeScheme = ITypeScheme [UniVar] IType
+--newtype GVar = GVar { unGVar :: Int } --deriving (Eq,Ord,Show)
+--instance Pretty GVar where pretty (GVar i) = "g" <> show i
+
+instance Pretty ITypeScheme where
+  pretty (ITypeScheme vs ty) =
+    "forall " <> intercalate " " (map pretty vs) <> "." <> pretty ty
+
+mono :: IType -> ITypeScheme
+mono ty = ITypeScheme [] ty
+
+generalize :: [ITypeScheme] -> IType -> Infer ITypeScheme
+generalize contextSchemes ty = do
+  rty <- refine ty
+  let as = collectUniVars [rty]
+  cTys <- sequence [ refine ty | ITypeScheme _ ty <- contextSchemes ]
+  let bs = collectUniVars cTys
+  IDebug ("as: " <> see as)
+  IDebug ("bs: " <> see bs)
+  let xs = as \\ bs
+  let ty' = ITypeScheme xs rty
+  IDebug ("gen: " <> pretty rty <> " --> " <> pretty ty')
+  pure ty'
+    where see vs = intercalate " " (map pretty vs)
+
+instantiate :: ITypeScheme -> Infer IType
+instantiate (ITypeScheme xs ty) = do
+  m <- Map.fromList <$> sequence [ do y <- IFresh; pure (x,y) | x <- xs ]
+  let ty' = specialize (\v -> Map.lookup v m) ty
+  pure ty'
+
+collectUniVars :: [IType] -> [UniVar]
+collectUniVars = nub . collects []
+  where
+    collect acc = \case
+      ITypeUnknown v -> v:acc
+      ITypeFix (TypeCon _ ts) -> collects acc ts
+      ITypeFix (arg :-> res) -> collect (collect acc res) arg
+    collects acc = \case
+      [] -> acc
+      t1:ts -> collect (collects acc ts) t1

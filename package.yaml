@@ -26,6 +26,8 @@ default-extensions:
 - RecordWildCards
 - ScopedTypeVariables
 # - OverloadedStrings
+- DeriveFunctor
+- DeriveFoldable
 
 ghc-options:
 - -Werror

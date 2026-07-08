@@ -1,10 +1,10 @@
 *typing-zoo*
 [0] 42
-:: forall . Int
+:: Int
 [1] true
-:: forall . Bool
+:: Bool
 [2] false
-:: forall . Bool
+:: Bool
 [3] \x -> x
 :: forall a. (a->a)
 [4] \f -> f
@@ -14,29 +14,29 @@
 [6] \x -> \y -> y
 :: forall a b. (a->(b->b))
 [7] (\x -> x) 42
-:: forall . Int
+:: Int
 [8] (\x -> x) true
-:: forall . Bool
+:: Bool
 [9] (\f -> \x -> f x) (\y -> y) 42
-:: forall . Int
+:: Int
 [10] let x = 42 in x
-:: forall . Int
+:: Int
 [11] let f = \x -> x in f
 :: forall a. (a->a)
 [12] let id = \x -> x in id 42
-:: forall . Int
+:: Int
 [13] let id = \x -> x in id true
-:: forall . Bool
+:: Bool
 [14] let f = \x -> x in let g = \y -> y in f (g 42)
-:: forall . Int
+:: Int
 [15] (42, true)
-:: forall . (Int,Bool)
+:: (Int,Bool)
 [16] (true, false, 42)
-:: forall . (Bool,Bool,Int)
+:: (Bool,Bool,Int)
 [17] (\x -> (x, x)) 42
-:: forall . (Int,Int)
+:: (Int,Int)
 [18] let pair = \x -> \y -> (x, y) in pair 42 true
-:: forall . (Int,Bool)
+:: (Int,Bool)
 [19] \f -> \x -> f x
 :: forall a b. ((a->b)->(a->b))
 [20] \f -> \x -> f (f x)
@@ -54,7 +54,7 @@
 [26] let y = \f -> (\x -> f (x x)) (\x -> f (x x)) in y
 **type error: occurs
 [27] let id = \x -> x in (id, id)
-:: forall a. ((a->a),(a->a))
+:: forall a b. ((a->a),(b->b))
 [28] let const = \x -> \y -> x in const
 :: forall a b. (a->(b->a))
 [29] let flip = \f -> \x -> \y -> f y x in flip
@@ -63,8 +63,8 @@
 **type error: occurs
 [31] (\x -> x x) (\x -> x x)
 **type error: occurs
-[32] \a b c -> let f x = x in (f (a,b), f (c,1))
-:: forall a. (a->(Int->(a->((a,Int),(a,Int)))))
+[32] \f a b c -> (f (a,b), f (c,1))
+:: forall a b. (((a,Int)->b)->(a->(Int->(a->(b,b)))))
 [33] \f -> (f 1, f true)
 **type error: Int ~ Bool
 [34] \f -> (f 1, f (2,3))
@@ -75,3 +75,9 @@
 **type error: (1,1) ~ (1,1,1)
 [37] \x -> 1 x
 **type error: Int ~ (0->1)
+[38] \id -> (id 1, id true)
+**type error: Int ~ Bool
+[39] let id x = x in (id 1, id true)
+:: (Int,Bool)
+[40] \f -> let id x = f x in (id 1, id true)
+**type error: Int ~ Bool

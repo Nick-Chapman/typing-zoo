@@ -49,7 +49,7 @@ let flip = \f -> \x -> \y -> f y x in flip
 (\x -> x x) (\x -> x x)
 
 # Tuple unification
-\a b c -> let f x = x in (f (a,b), f (c,1))
+\f a b c -> (f (a,b), f (c,1))
 
 # Mismatch
 \f -> (f 1, f true)
@@ -57,3 +57,8 @@ let flip = \f -> \x -> \y -> f y x in flip
 \f -> (f (1,2), f (3,4,5))
 \f a -> (f (a,a), f (a,a,a))
 \x -> 1 x
+
+# Generlization
+\id -> (id 1, id true)                  # type error expected
+let id x = x in (id 1, id true)         # LetGen will avoid error here
+\f -> let id x = f x in (id 1, id true) # should still type error here
