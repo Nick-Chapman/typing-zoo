@@ -30,3 +30,37 @@
 :: Bool
 [15] (+) 1 2
 :: Int
+[16] not
+:: (Bool->Bool)
+[17] \x -> 0 - x
+:: (Int->Int)
+[18] \x -> 0 + x
+:: (Int->Int)
+[19] \a -> let b = a in b
+:: forall a. (a->a)
+[20] \f -> f 1
+:: forall a. ((Int->a)->a)
+[21] \f -> \g -> \x -> f (g x)
+:: forall a b c. ((a->b)->((c->a)->(c->b)))
+[22] \f -> \x -> f x
+:: forall a b. ((a->b)->(a->b))
+[23] \f -> let res = f 1 in res
+:: forall a. ((Int->a)->a)
+[24] \f -> let res = \x -> f x in res
+:: forall a b. ((a->b)->(a->b))
+[25] \f g x -> f (g x)
+:: forall a b c. ((a->b)->((c->a)->(c->b)))
+[26] \f x -> f (f x)
+:: forall a. ((a->a)->(a->a))
+[27] \f x -> f x
+:: forall a b. ((a->b)->(a->b))
+[28] \x -> x
+:: forall a. (a->a)
+[29] \z -> 1
+:: forall a. (a->Int)
+[30] \z -> \x -> x
+:: forall a b. (a->(b->b))
+[31] \z -> let dub = \a -> \f -> f a a in dub
+:: forall a b c. (a->(b->((b->(b->c))->c)))
+[32] \x -> x
+:: forall a. (a->a)
