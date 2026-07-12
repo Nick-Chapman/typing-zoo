@@ -11,3 +11,25 @@ true
 "hello"
 'x'
 
+# Operators...
+
+#- 14 # prefix
+#+ 15 # prefix
+1+2
+3-1
+3*2
+6/2
+#6 `div` 2
+#6 `mod` 5
+#5 `cmp` 5
+#7/(-3)
+#7/(+3)
+true && not false
+#- 2147483647
+#-(+1)
+16/4/2
+16/(4/2)
+16+4/2
+true || true
+not true
+(+) 1 2

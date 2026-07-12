@@ -8,3 +8,25 @@
 :: String
 [4] 'x'
 :: Char
+[5] 1+2
+:: Int
+[6] 3-1
+:: Int
+[7] 3*2
+:: Int
+[8] 6/2
+:: Int
+[9] true && not false
+:: Bool
+[10] 16/4/2
+:: Int
+[11] 16/(4/2)
+:: Int
+[12] 16+4/2
+:: Int
+[13] true || true
+:: Bool
+[14] not true
+:: Bool
+[15] (+) 1 2
+:: Int

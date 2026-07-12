@@ -260,7 +260,7 @@ gram6 = topExp where
     [e] -> e
     es -> AST.Tuple es -- unit comes as zero tuple
 
-  prefixNames = ["!"]
+  prefixNames = ["!"] --, "-", "+"]
 
   prefixed = do
     p1 <- position

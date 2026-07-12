@@ -31,7 +31,6 @@ parseConfig = \case
   [filename] -> Config {filename}
   args -> error ("parseConfig: " <> show args)
 
-
 runExample :: (Int,String) -> IO ()
 runExample (i,s) = do
   let trim = reverse . dropWhile (==' ') . reverse
@@ -68,7 +67,7 @@ typeExp ctx exp = case exp of
     pure ret
   AST.Var _pos x -> do
     let Ctx{xmap} = ctx
-    let err = error ("typeExp/EVar" <> pretty x)
+    let err = error ("unbound var: '" <> pretty x <> "'")
     let scheme = maybe err id $ Map.lookup x xmap
     instantiate scheme
   AST.Lit _pos  lit ->
@@ -98,6 +97,13 @@ ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, mono ty) | (x,ty) <- init ] }
     init =
       [ ("true", typeBool)
       , ("false", typeBool)
+      , ("-", typeInt --> typeInt --> typeInt)
+      , ("+", typeInt --> typeInt --> typeInt)
+      , ("*", typeInt --> typeInt --> typeInt)
+      , ("/", typeInt --> typeInt --> typeInt)
+      , ("&&", typeBool --> typeBool --> typeBool)
+      , ("||", typeBool --> typeBool --> typeBool)
+      , ("not", typeBool --> typeBool)
       ]
 
 typeInt,typeChar,typeString,typeBool :: IType

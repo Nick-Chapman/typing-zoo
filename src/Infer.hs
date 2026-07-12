@@ -31,6 +31,8 @@ typeBase0 name = ITypeFix (TypeCon (TCon name) [])
 tuple :: [IType] -> IType
 tuple ts = ITypeFix (TypeCon (TCon "Tuple") ts)
 
+infixr -->
+
 (-->) :: IType -> IType -> IType
 (-->) a b = ITypeFix (a :-> b)
 
