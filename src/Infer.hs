@@ -43,6 +43,7 @@ data IType
 instance Pretty IType where
   pretty = \case
     ITypeUnknown v -> pretty v
+    ITypeFix t@(_ :-> _) -> "(" <> pretty t <> ")"
     ITypeFix t -> pretty t
 
 newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)

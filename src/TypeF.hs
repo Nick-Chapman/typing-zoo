@@ -16,15 +16,17 @@ data TypeF t
   | t :-> t
   deriving (Foldable, Functor)
 
-prettyF :: (a -> String) -> TypeF a -> String
+data PrettyContext = Top | LeftOfArrow
+
+prettyF :: (PrettyContext -> a -> String) -> TypeF a -> String
 prettyF pret = \case
-  TypeCon (TCon "Tuple") typs -> "(" <> intercalate "," (map pret typs) <> ")"
+  TypeCon (TCon "Tuple") typs -> "(" <> intercalate "," (map (pret Top) typs) <> ")"
   TypeCon c [] -> pretty c
-  TypeCon c typs -> pretty c <> "(" <> intercalate "," (map pret typs) <> ")"
-  arg :-> res -> "(" <> pret arg <> "->" <> pret res <> ")"
+  TypeCon c typs -> pretty c <> "(" <> intercalate "," (map (pret Top) typs) <> ")"
+  arg :-> res -> pret LeftOfArrow arg <> "->" <> pret Top res
 
 instance Pretty t => Pretty (TypeF t)  where
-  pretty = prettyF pretty
+  pretty = prettyF (\_ -> pretty)
 
 newtype TCon = TCon String deriving (Eq)
 instance Pretty TCon where pretty (TCon s) = s
@@ -57,10 +59,10 @@ collectTVars = nub . collect []
 instance Pretty TypeScheme where
   pretty scheme =
     case bound of
-      [] -> prettyM body
+      [] -> prettyM Top body
       _:_ ->
         "forall " <> intercalate " " (map resolve bound) <> ". " <>
-        prettyM body
+        prettyM Top body
 
     where
       names =
@@ -74,9 +76,14 @@ instance Pretty TypeScheme where
       resolve tv = maybe err id $ Map.lookup tv mapping
         where err = error (show ("pretty/tscheme/resolve",tv))
 
-      --resolve (TVar u) = show u
-
-      prettyM :: MType -> String
-      prettyM = \case
-        MTypeFix t -> prettyF prettyM t
+      prettyM :: PrettyContext -> MType -> String
+      prettyM context = \case
+        MTypeFix t -> bracket context t (prettyF prettyM t)
         MTypeVar v -> resolve v
+
+      bracket :: PrettyContext -> TypeF MType -> String -> String
+      bracket = \case
+        Top -> \_ -> \s->s
+        LeftOfArrow -> \case
+          (_ :-> _) -> \s -> "(" <> s <> ")"
+          _ -> \s->s
