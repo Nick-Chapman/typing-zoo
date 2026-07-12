@@ -21,7 +21,7 @@ data Exp
   | RecLam Pos Bool Bid Bid Exp
   | App Exp Pos Exp
   | Let Pos Bid Exp Exp
-  | Tuple [Exp]
+  | Tuple [Exp] -- including size-0 which is unit
 --  | Match Pos Exp [Arm]
 
 data Bid = Bid Pos Id -- we always know the position of a bound identifier...
@@ -30,7 +30,10 @@ instance Pretty Bid where pretty (Bid _ x) = pretty x -- ...but we never show it
 mkUserId :: String -> Id
 mkUserId = Id
 
-data Literal = LitC Char | LitN Int | LitS String
+data Literal
+  = LitC Char
+  | LitN Int
+  | LitS String
 
 instance Pretty Exp where
   pretty = \case

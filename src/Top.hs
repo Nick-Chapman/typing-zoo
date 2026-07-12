@@ -6,7 +6,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Parser (parse)
 import Pretty (Pretty(..))
-import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine2,runInfer,ITypeScheme,generalize,instantiate,mono)
+import Infer (IType,TypeError,Infer(..),typeBase0,tuple,unify,(-->),getRefine2,runInfer,ITypeScheme,generalize,instantiate,mono)
 import TypeF (TypeScheme)
 import System.Environment (getArgs)
 
@@ -32,12 +32,11 @@ parseConfig = \case
   args -> error ("parseConfig: " <> show args)
 
 
-
 runExample :: (Int,String) -> IO ()
 runExample (i,s) = do
-  let exp = parse s
   let trim = reverse . dropWhile (==' ') . reverse
   putStrLn $ "[" <> show i <> "] " <> trim s
+  let exp = parse s
   --putStrLn $ "[" <> show i <> "] " <> pretty exp
   runInferTypeOfExp exp >>= \case
     Left err -> putStrLn ("**type error: " <> pretty err)
@@ -75,8 +74,8 @@ typeExp ctx exp = case exp of
   AST.Lit _pos  lit ->
     case lit of
       AST.LitN{} -> pure typeInt
-      AST.LitC{} -> undefined
-      AST.LitS{} -> undefined
+      AST.LitC{} -> pure typeChar
+      AST.LitS{} -> pure typeString
   AST.RecLam{} -> undefined
   AST.Let _p1 (AST.Bid _p2 x) eRhs eBody -> do
     rhs <- typeExp ctx eRhs
@@ -89,6 +88,7 @@ typeExp ctx exp = case exp of
     ts <- mapM (typeExp ctx) es
     pure $ tuple ts
 
+
 data Ctx = Ctx { xmap :: Map Id ITypeScheme }
 instance Pretty Ctx where pretty Ctx{xmap=m} = pretty m
 
@@ -99,3 +99,9 @@ ctx0 = Ctx { xmap = Map.fromList [ (mkUserId x, mono ty) | (x,ty) <- init ] }
       [ ("true", typeBool)
       , ("false", typeBool)
       ]
+
+typeInt,typeChar,typeString,typeBool :: IType
+typeInt = typeBase0 "Int"
+typeChar = typeBase0 "Char"
+typeString = typeBase0 "String"
+typeBool = typeBase0 "Bool"

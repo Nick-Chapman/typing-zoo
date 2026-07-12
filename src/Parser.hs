@@ -200,19 +200,19 @@ gram6 = topExp where
       ]
     pure $ AST.Lit pos lit
 
-{-
-  unit = do
-    pos <- position
-    openClose
-    pure (AST.Con pos cUnit [])
 
+  unit = do
+    --pos <- position
+    openClose
+    pure (AST.Tuple []) -- pos cUnit [])
+{-
   ignored_assert = do
     pos <- position
     key "assert"
     _ <- atom
     pure (AST.Con pos cUnit [])
 -}
-  literal = alts [positionedLit] --,unit]
+  literal = alts [positionedLit,unit]
 
   tupleExp :: Par [Exp] =
     bracketed (separated (key ",") exp)

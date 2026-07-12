@@ -1,6 +1,8 @@
 module Infer
   ( IType
-  , typeInt, typeBool, tuple, (-->)
+  , typeBase0
+  , tuple
+  , (-->)
   , Infer(..)
   , unify
   , getRefine2
@@ -23,9 +25,8 @@ instance Functor Infer where fmap = liftM
 instance Applicative Infer where pure = IPure; (<*>) = ap
 instance Monad Infer where (>>=) = IBind
 
-typeInt,typeBool :: IType
-typeInt = ITypeFix (TypeCon (TCon "Int") [])
-typeBool = ITypeFix (TypeCon (TCon "Bool") [])
+typeBase0 :: String -> IType
+typeBase0 name = ITypeFix (TypeCon (TCon name) [])
 
 tuple :: [IType] -> IType
 tuple ts = ITypeFix (TypeCon (TCon "Tuple") ts)
