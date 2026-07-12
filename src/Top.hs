@@ -8,11 +8,14 @@ import Parser (parse)
 import Pretty (Pretty(..))
 import Infer (IType,TypeError,Infer(..),typeInt,typeBool,tuple,unify,(-->),getRefine2,runInfer,ITypeScheme,generalize,instantiate,mono)
 import TypeF (TypeScheme)
+import System.Environment (getArgs)
 
 main :: IO ()
 main = do
-  putStrLn "*typing-zoo*"
-  xs <- zip [0..] . filterExamples . lines <$> readFile "basic.fun"
+  --putStrLn "*typing-zoo*"
+  args <- getArgs
+  let Config {filename} = parseConfig args
+  xs <- zip [0..] . filterExamples . lines <$> readFile filename
   mapM_ runExample xs
     where
       _pick ns xs = [ (n, xs!!n) | n <- ns ]
@@ -21,6 +24,14 @@ main = do
       dropComment = takeWhile (/= '#')
       empty :: String -> Bool
       empty s = s==""
+
+data Config = Config { filename :: String }
+parseConfig :: [String] -> Config
+parseConfig = \case
+  [filename] -> Config {filename}
+  args -> error ("parseConfig: " <> show args)
+
+
 
 runExample :: (Int,String) -> IO ()
 runExample (i,s) = do
