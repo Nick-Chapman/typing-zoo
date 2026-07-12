@@ -54,4 +54,4 @@ not
 \z -> let dub = \a -> \f -> f a a in dub
 \x -> x
 
-#\a -> \b -> \c -> \d -> a (b c) (b c) # BUG: occurs
+\a -> \b -> \c -> \d -> a (b c) (b c) # was bug: occurs check fail

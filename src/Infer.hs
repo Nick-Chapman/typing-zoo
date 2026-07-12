@@ -55,8 +55,10 @@ unify ty1 ty2 = do
   IDebug ("unify: " <> pretty ty1 <> " ~ " <> pretty ty2)
   let mismatch = IFail (pretty ty1 <> " ~ " <> pretty ty2)
   case (ty1,ty2) of
-    (ty, ITypeUnknown v) -> subTy v ty
+    (ITypeUnknown v1, ty@(ITypeUnknown v2)) ->
+      if v1 == v2 then pure () else subTy v1 ty
     (ITypeUnknown v, ty) -> subTy v ty
+    (ty, ITypeUnknown v) -> subTy v ty
     (ITypeFix (TypeCon c1 typs1), ITypeFix (TypeCon c2 typs2)) | c1==c2 -> do
       if length typs1 /= length typs2 then mismatch else
         sequence_ [ unify ty1 ty2 | (ty1,ty2) <- zip typs1 typs2 ]

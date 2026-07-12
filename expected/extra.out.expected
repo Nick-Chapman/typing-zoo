@@ -64,3 +64,5 @@
 :: forall a b c. (a->(b->((b->(b->c))->c)))
 [32] \x -> x
 :: forall a. (a->a)
+[33] \a -> \b -> \c -> \d -> a (b c) (b c)
+:: forall a b c d. ((a->(a->b))->((c->a)->(c->(d->b))))
