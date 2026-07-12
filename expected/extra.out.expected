@@ -66,3 +66,7 @@
 :: forall a. a->a
 [33] \a -> \b -> \c -> \d -> a (b c) (b c)
 :: forall a b c d. (a->a->b)->(c->a)->c->d->b
+[34] let f0 x = (x,x) in let f1 x = f0(f0 x) in let f2 x = f1(f1 x) in f2
+:: forall a. a->((((a,a),(a,a)),((a,a),(a,a))),(((a,a),(a,a)),((a,a),(a,a))))
+[35] let f0 k a b = k a b in let f1 k = k f0 f0 in let f2 k = k f1 f1 in f2
+:: forall a b c d e f g h i j k l m n o. (((((a->b->c)->a->b->c)->((d->e->f)->d->e->f)->g)->g)->((((h->i->j)->h->i->j)->((k->l->m)->k->l->m)->n)->n)->o)->o
