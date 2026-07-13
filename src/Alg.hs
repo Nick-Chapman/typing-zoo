@@ -1,2 +1,2 @@
 module Alg (module X) where
-import AlgW as X
+import AlgM as X -- select algorithm (W or M) here

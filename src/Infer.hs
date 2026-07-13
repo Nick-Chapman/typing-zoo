@@ -47,7 +47,7 @@ instance Pretty IType where
     ITypeFix t -> pretty t
 
 newtype UniVar = UniVar { unUniVar :: Int } deriving (Eq,Ord,Show)
-instance Pretty UniVar where pretty (UniVar i) = show i
+instance Pretty UniVar where pretty (UniVar _i) = "_"
 
 unify :: IType -> IType -> Infer ()
 unify ty1 ty2 = do

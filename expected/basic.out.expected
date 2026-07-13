@@ -67,13 +67,13 @@
 [33] \f -> (f 1, f true)
 **type error: Int ~ Bool
 [34] \f -> (f 1, f (2,3))
-**type error: Int ~ (Int,Int)
+**type error: Int ~ (_,_)
 [35] \f -> (f (1,2), f (3,4,5))
-**type error: (Int,Int) ~ (Int,Int,Int)
+**type error: (Int,Int) ~ (_,_,_)
 [36] \f a -> (f (a,a), f (a,a,a))
-**type error: (1,1) ~ (1,1,1)
+**type error: (_,_) ~ (_,_,_)
 [37] \x -> 1 x
-**type error: Int ~ (0->1)
+**type error: (_->_) ~ Int
 [38] \id -> (id 1, id true)
 **type error: Int ~ Bool
 [39] let id x = x in (id 1, id true)
