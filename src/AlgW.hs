@@ -4,7 +4,7 @@ module AlgW
 
 import AST (Exp)
 import AST qualified (Exp(..),Bid(..),Literal(..))
-import Ctx (Ctx,typeChar,typeString,typeInt,lookupCtx,insertCtx,ctx0,typesFromCtx)
+import Ctx (Ctx,typeBool,typeChar,typeString,typeInt,lookupCtx,insertCtx,ctx0,typesFromCtx)
 import Infer(Infer(..),IType,instantiate,unify,(-->),getRefine2,mono,generalize,tuple)
 import Pretty (Pretty(..))
 import TypeF (TypeScheme)
@@ -44,3 +44,10 @@ typeExp ctx exp = case exp of
   AST.Tuple es -> do
     ts <- mapM (typeExp ctx) es
     pure $ tuple ts
+  AST.Ite e1 e2 e3 -> do
+    i <- typeExp ctx e1
+    unify i typeBool
+    t <- typeExp ctx e2
+    e <- typeExp ctx e3
+    unify t e
+    pure t

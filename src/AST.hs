@@ -22,6 +22,7 @@ data Exp
   | App Exp Pos Exp
   | Let Pos Bid Exp Exp
   | Tuple [Exp] -- including size-0 which is unit
+  | Ite Exp Exp Exp
 --  | Match Pos Exp [Arm]
 
 data Bid = Bid Pos Id -- we always know the position of a bound identifier...
@@ -45,7 +46,10 @@ instance Pretty Exp where
     Let _ (Bid _ x) rhs body ->
       "let " <> pretty x <> " = " <> pretty rhs <> " in " <> pretty body
     Tuple es ->
-      "(" <> intercalate "," (map pretty es) <> ")" 
+      "(" <> intercalate "," (map pretty es) <> ")"
+    Ite i t e ->
+      "(if " <> pretty i <> " then " <> pretty t <> " else " <> pretty e <> ")"
+
 instance Pretty Literal where
   pretty = \case
     LitC c -> show c

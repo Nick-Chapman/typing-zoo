@@ -4,7 +4,7 @@ module AlgM
 
 import AST (Exp)
 import AST qualified (Exp(..),Bid(..),Literal(..))
-import Ctx (Ctx,typeChar,typeString,typeInt,lookupCtx,insertCtx,ctx0,typesFromCtx)
+import Ctx (Ctx,typeBool,typeChar,typeString,typeInt,lookupCtx,insertCtx,ctx0,typesFromCtx)
 import Infer (Infer(..),IType,instantiate,unify,(-->),getRefine2,mono,generalize,tuple)
 import TypeF (TypeScheme)
 
@@ -50,3 +50,7 @@ typeExpAs ctx exp expected = case exp of
     let got = tuple (map snd pairs)
     unify expected got
     sequence_ [ typeExpAs ctx e t | (e,t) <- pairs ]
+  AST.Ite i t e -> do
+    typeExpAs ctx i typeBool
+    typeExpAs ctx t expected
+    typeExpAs ctx e expected

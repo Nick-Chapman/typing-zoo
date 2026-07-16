@@ -204,3 +204,17 @@
 :: (((Int,Int),Int),(Int,Int))
 [102] (1 * 2, 3 * 4)
 :: (Int,Int)
+[103] if (true) then 1 else 2
+:: Int
+[104] \a -> if (true) then a else a
+:: forall a. a->a
+[105] \a -> if (true) then a else 1
+:: Int->Int
+[106] \a -> if (true) then a else not a
+:: Bool->Bool
+[107] \a -> if (true) then (1,a,true) else (2,a,false)
+:: forall a. a->(Int,a,Bool)
+[108] if true then if true then 1 else 2 else 3
+:: Int
+[109] (if true then 1 else 2, if false then 1 else 2)
+:: (Int,Int)

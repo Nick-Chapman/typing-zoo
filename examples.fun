@@ -157,3 +157,12 @@ let x = 3 in \x -> x
 (10, true, ())
 (((1,2),3),(4,5))
 (1 * 2, 3 * 4)
+
+# if-then-else
+if (true) then 1 else 2
+\a -> if (true) then a else a
+\a -> if (true) then a else 1
+\a -> if (true) then a else not a
+\a -> if (true) then (1,a,true) else (2,a,false)
+if true then if true then 1 else 2 else 3
+(if true then 1 else 2, if false then 1 else 2)

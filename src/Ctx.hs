@@ -1,7 +1,7 @@
 module Ctx
   ( Ctx
   , ctx0
-  , typeChar,typeString,typeInt
+  , typeBool,typeChar,typeString,typeInt
   , lookupCtx, insertCtx
   , typesFromCtx
   )

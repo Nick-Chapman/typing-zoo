@@ -20,9 +20,10 @@ mkAbstraction xs e = case xs of [] -> e; x@(Bid pos _):xs -> AST.Lam pos x (mkAb
 mkApps :: Exp -> [(Pos,Exp)] -> Exp
 mkApps f es = case es of [] -> f; (pos,e):es -> mkApps (AST.App f pos e) es
 
-{-mkIte :: Pos -> Exp -> Pos -> Exp -> Pos -> Exp -> Exp
-mkIte pos i posThen t posElse e =
-  AST.Match pos i [AST.Arm posThen cTrue [] t, AST.Arm posElse cFalse [] e ]-}
+mkIte :: Pos -> Exp -> Pos -> Exp -> Pos -> Exp -> Exp
+mkIte _pos i _posThen t _posElse e =
+  --AST.Match pos i [AST.Arm posThen cTrue [] t, AST.Arm posElse cFalse [] e ]
+  AST.Ite i t e
 
 underscore :: Id
 underscore = mkUserId "_"
@@ -39,7 +40,7 @@ gram6 :: Par Exp --Prog
 gram6 = topExp where
 --gram6 = program where
 
-  keywords = ["let","rec","in"] --"let","in","if","then","else","fun","match","with","rec","true","false","type","of","assert"]
+  keywords = ["let","rec","in","if","then","else"] -- "match","with","type","of","assert"]
 
   fail = alts []
 
@@ -373,7 +374,7 @@ gram6 = topExp where
     body <- exp
     pure (AST.Let pos x rhs body)
 
-{-  ite = do
+  ite = do
     pos <- position
     key "if"
     i <- exp
@@ -383,7 +384,7 @@ gram6 = topExp where
     posElse <- position
     key "else"
     e <- exp_no_semi
-    pure (mkIte pos i posThen t posElse e)-}
+    pure (mkIte pos i posThen t posElse e)
 
   abstraction = do
     key "\\" --fun
@@ -410,7 +411,7 @@ gram6 = topExp where
 -}
   expITE = alts
     [ infixWeakestPrecendence
-    -- , ite
+    , ite
     ]
 
   expSEQ = do
@@ -422,12 +423,12 @@ gram6 = topExp where
          , pure e1
          ]
 
-{-  exp_no_semi = alts
+  exp_no_semi = alts
     [ expITE
     , abstraction
     -- , match_
     , let_
-    ]-}
+    ]
 
   exp = alts
     [ expSEQ
