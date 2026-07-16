@@ -1,3 +1,67 @@
+# Basic literals
+42
+true
+false
+
+# Variables and identity
+\x -> x
+\f -> f
+\x -> \y -> x
+\x -> \y -> y
+
+# Application
+(\x -> x) 42
+(\x -> x) true
+(\f -> \x -> f x) (\y -> y) 42
+
+# Let expressions
+let x = 42 in x
+let f = \x -> x in f
+let id = \x -> x in id 42
+let id = \x -> x in id true
+let f = \x -> x in let g = \y -> y in f (g 42)
+
+# Tuples
+(42, true)
+(true, false, 42)
+(\x -> (x, x)) 42
+let pair = \x -> \y -> (x, y) in pair 42 true
+
+# Higher-order functions
+\f -> \x -> f x
+\f -> \x -> f (f x)
+\f -> \g -> \x -> f (g x)
+let twice = \f -> \x -> f (f x) in twice
+let compose = \f -> \g -> \x -> f (g x) in compose
+
+# Complex examples
+let k = \x -> \y -> x in k
+let s = \f -> \g -> \x -> f x (g x) in s
+let y = \f -> (\x -> f (x x)) (\x -> f (x x)) in y
+
+# Polymorphic examples (simplified for our basic implementation)
+let id = \x -> x in (id, id)
+let const = \x -> \y -> x in const
+let flip = \f -> \x -> \y -> f y x in flip
+
+# Error cases (should fail)
+\x -> x x
+(\x -> x x) (\x -> x x)
+
+# Tuple unification
+\f a b c -> (f (a,b), f (c,1))
+
+# Mismatch
+\f -> (f 1, f true)
+\f -> (f 1, f (2,3))
+\f -> (f (1,2), f (3,4,5))
+\f a -> (f (a,a), f (a,a,a))
+\x -> 1 x
+
+# Generlization
+\id -> (id 1, id true)                  # type error expected
+let id x = x in (id 1, id true)         # LetGen will avoid error here
+\f -> let id x = f x in (id 1, id true) # should still type error here
 
 # Literals...
 ()

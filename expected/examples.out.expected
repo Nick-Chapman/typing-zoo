@@ -1,0 +1,206 @@
+[0] 42
+:: Int
+[1] true
+:: Bool
+[2] false
+:: Bool
+[3] \x -> x
+:: forall a. a->a
+[4] \f -> f
+:: forall a. a->a
+[5] \x -> \y -> x
+:: forall a b. a->b->a
+[6] \x -> \y -> y
+:: forall a b. a->b->b
+[7] (\x -> x) 42
+:: Int
+[8] (\x -> x) true
+:: Bool
+[9] (\f -> \x -> f x) (\y -> y) 42
+:: Int
+[10] let x = 42 in x
+:: Int
+[11] let f = \x -> x in f
+:: forall a. a->a
+[12] let id = \x -> x in id 42
+:: Int
+[13] let id = \x -> x in id true
+:: Bool
+[14] let f = \x -> x in let g = \y -> y in f (g 42)
+:: Int
+[15] (42, true)
+:: (Int,Bool)
+[16] (true, false, 42)
+:: (Bool,Bool,Int)
+[17] (\x -> (x, x)) 42
+:: (Int,Int)
+[18] let pair = \x -> \y -> (x, y) in pair 42 true
+:: (Int,Bool)
+[19] \f -> \x -> f x
+:: forall a b. (a->b)->a->b
+[20] \f -> \x -> f (f x)
+:: forall a. (a->a)->a->a
+[21] \f -> \g -> \x -> f (g x)
+:: forall a b c. (a->b)->(c->a)->c->b
+[22] let twice = \f -> \x -> f (f x) in twice
+:: forall a. (a->a)->a->a
+[23] let compose = \f -> \g -> \x -> f (g x) in compose
+:: forall a b c. (a->b)->(c->a)->c->b
+[24] let k = \x -> \y -> x in k
+:: forall a b. a->b->a
+[25] let s = \f -> \g -> \x -> f x (g x) in s
+:: forall a b c. (a->b->c)->(a->b)->a->c
+[26] let y = \f -> (\x -> f (x x)) (\x -> f (x x)) in y
+**type error: occurs
+[27] let id = \x -> x in (id, id)
+:: forall a b. (a->a,b->b)
+[28] let const = \x -> \y -> x in const
+:: forall a b. a->b->a
+[29] let flip = \f -> \x -> \y -> f y x in flip
+:: forall a b c. (a->b->c)->b->a->c
+[30] \x -> x x
+**type error: occurs
+[31] (\x -> x x) (\x -> x x)
+**type error: occurs
+[32] \f a b c -> (f (a,b), f (c,1))
+:: forall a b. ((a,Int)->b)->a->Int->a->(b,b)
+[33] \f -> (f 1, f true)
+**type error: Int ~ Bool
+[34] \f -> (f 1, f (2,3))
+**type error: Int ~ (_,_)
+[35] \f -> (f (1,2), f (3,4,5))
+**type error: (Int,Int) ~ (_,_,_)
+[36] \f a -> (f (a,a), f (a,a,a))
+**type error: (_,_) ~ (_,_,_)
+[37] \x -> 1 x
+**type error: (_->_) ~ Int
+[38] \id -> (id 1, id true)
+**type error: Int ~ Bool
+[39] let id x = x in (id 1, id true)
+:: (Int,Bool)
+[40] \f -> let id x = f x in (id 1, id true)
+**type error: Int ~ Bool
+[41] ()
+:: ()
+[42] true
+:: Bool
+[43] 42
+:: Int
+[44] "hello"
+:: String
+[45] 'x'
+:: Char
+[46] 1+2
+:: Int
+[47] 3-1
+:: Int
+[48] 3*2
+:: Int
+[49] 6/2
+:: Int
+[50] true && not false
+:: Bool
+[51] 16/4/2
+:: Int
+[52] 16/(4/2)
+:: Int
+[53] 16+4/2
+:: Int
+[54] true || true
+:: Bool
+[55] not true
+:: Bool
+[56] (+) 1 2
+:: Int
+[57] not
+:: Bool->Bool
+[58] \x -> 0 - x
+:: Int->Int
+[59] \x -> 0 + x
+:: Int->Int
+[60] \a -> let b = a in b
+:: forall a. a->a
+[61] \f -> f 1
+:: forall a. (Int->a)->a
+[62] \f -> \g -> \x -> f (g x)
+:: forall a b c. (a->b)->(c->a)->c->b
+[63] \f -> \x -> f x
+:: forall a b. (a->b)->a->b
+[64] \f -> let res = f 1 in res
+:: forall a. (Int->a)->a
+[65] \f -> let res = \x -> f x in res
+:: forall a b. (a->b)->a->b
+[66] \f g x -> f (g x)
+:: forall a b c. (a->b)->(c->a)->c->b
+[67] \f x -> f (f x)
+:: forall a. (a->a)->a->a
+[68] \f x -> f x
+:: forall a b. (a->b)->a->b
+[69] \x -> x
+:: forall a. a->a
+[70] \z -> 1
+:: forall a. a->Int
+[71] \z -> \x -> x
+:: forall a b. a->b->b
+[72] \z -> let dub = \a -> \f -> f a a in dub
+:: forall a b c. a->b->(b->b->c)->c
+[73] \x -> x
+:: forall a. a->a
+[74] \a -> \b -> \c -> \d -> a (b c) (b c)
+:: forall a b c d. (a->a->b)->(c->a)->c->d->b
+[75] let f0 x = (x,x) in let f1 x = f0(f0 x) in let f2 x = f1(f1 x) in f2
+:: forall a. a->((((a,a),(a,a)),((a,a),(a,a))),(((a,a),(a,a)),((a,a),(a,a))))
+[76] let f0 k a b = k a b in let f1 k = k f0 f0 in let f2 k = k f1 f1 in f2
+:: forall a b c d e f g h i j k l m n o. (((((a->b->c)->a->b->c)->((d->e->f)->d->e->f)->g)->g)->((((h->i->j)->h->i->j)->((k->l->m)->k->l->m)->n)->n)->o)->o
+[77] (\a -> a) 42
+:: Int
+[78] (\a -> \b -> (b, a)) 1 2
+:: (Int,Int)
+[79] (\a b -> (b, a)) 1 2
+:: (Int,Int)
+[80] (\x -> (\y -> (y,y), \z -> (z,z))) 1
+:: forall a b. (a->(a,a),b->(b,b))
+[81] (\f g x -> f (g x)) (\x -> x)
+:: forall a b. (a->b)->a->b
+[82] let inc = \x -> x + 1 in inc (inc 42)
+:: Int
+[83] let inc = \x -> x + 1 in inc 5
+:: Int
+[84] let x = 5 in x+x
+:: Int
+[85] let f x = x+x in f
+:: Int->Int
+[86] let x = 42 in x
+:: Int
+[87] let xxx = 1 in let yyy = 2 in (xxx, yyy)
+:: (Int,Int)
+[88] let f x = (x, x) in f 42
+:: (Int,Int)
+[89] let f x y = (y, x) in f 1 2
+:: (Int,Int)
+[90] let x = 3 in let x = true in x
+:: Bool
+[91] let x = 3 in let y = x in let x = true in (x,y)
+:: (Bool,Int)
+[92] let x = 3 in \x -> x
+:: forall a. a->a
+[93] (1,true)
+:: (Int,Bool)
+[94] (1,2)
+:: (Int,Int)
+[95] \a b -> (a,b)
+:: forall a b. a->b->(a,b)
+[96] \a b -> (a,b,1,a)
+:: forall a b. a->b->(a,b,Int,a)
+[97] \a b -> (a,(b,1),a)
+:: forall a b. a->b->(a,(b,Int),a)
+[98] (\a -> a+1) 5
+:: Int
+[99] (10,10)
+:: (Int,Int)
+[100] (10, true, ())
+:: (Int,Bool,())
+[101] (((1,2),3),(4,5))
+:: (((Int,Int),Int),(Int,Int))
+[102] (1 * 2, 3 * 4)
+:: (Int,Int)
