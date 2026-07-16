@@ -166,3 +166,23 @@ if (true) then 1 else 2
 \a -> if (true) then (1,a,true) else (2,a,false)
 if true then if true then 1 else 2 else 3
 (if true then 1 else 2, if false then 1 else 2)
+
+# errors
+\x -> x x
+\a -> if (true) then a else (a,a)
+false + 22
+11 + true
+true && 123
+true && not
+let inc = \x -> x + 1 in inc true
+let x = true in x+x
+not (+)
+not 42
+(42+1) 77
+(\a -> a+1) (5,6)
+(\f -> f 1) (5,6,7)
+(1,2) 3
+if (10) then 11 else 12
+if (true) then 13 else ()
+if (true) then (1,2,true) else (2,true,true)
+\a -> if (true) then (1,a) else (a,false)

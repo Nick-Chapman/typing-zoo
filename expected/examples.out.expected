@@ -218,3 +218,39 @@
 :: Int
 [109] (if true then 1 else 2, if false then 1 else 2)
 :: (Int,Int)
+[110] \x -> x x
+**type error: occurs
+[111] \a -> if (true) then a else (a,a)
+**type error: occurs
+[112] false + 22
+**type error: Int ~ Bool
+[113] 11 + true
+**type error: Int ~ Bool
+[114] true && 123
+**type error: Bool ~ Int
+[115] true && not
+**type error: Bool ~ (Bool->Bool)
+[116] let inc = \x -> x + 1 in inc true
+**type error: Int ~ Bool
+[117] let x = true in x+x
+**type error: Int ~ Bool
+[118] not (+)
+**type error: Bool ~ (Int->(Int->Int))
+[119] not 42
+**type error: Bool ~ Int
+[120] (42+1) 77
+**type error: (_->_) ~ Int
+[121] (\a -> a+1) (5,6)
+**type error: Int ~ (_,_)
+[122] (\f -> f 1) (5,6,7)
+**type error: (Int->_) ~ (_,_,_)
+[123] (1,2) 3
+**type error: (_->_) ~ (_,_)
+[124] if (10) then 11 else 12
+**type error: Bool ~ Int
+[125] if (true) then 13 else ()
+**type error: Int ~ ()
+[126] if (true) then (1,2,true) else (2,true,true)
+**type error: Int ~ Bool
+[127] \a -> if (true) then (1,a) else (a,false)
+**type error: Int ~ Bool
