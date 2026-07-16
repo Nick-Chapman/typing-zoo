@@ -55,3 +55,41 @@ not
 # Blow up...
 let f0 x = (x,x) in let f1 x = f0(f0 x) in let f2 x = f1(f1 x) in f2
 let f0 k a b = k a b in let f1 k = k f0 f0 in let f2 k = k f1 f1 in f2
+
+
+# More tests from previous times...
+
+# application
+
+(\a -> a) 42
+(\a -> \b -> (b, a)) 1 2
+(\a b -> (b, a)) 1 2
+(\x -> (\y -> (y,y), \z -> (z,z))) 1
+(\f g x -> f (g x)) (\x -> x)
+
+# let
+let inc = \x -> x + 1 in inc (inc 42)
+let inc = \x -> x + 1 in inc 5
+let x = 5 in x+x
+let f x = x+x in f
+let x = 42 in x
+let xxx = 1 in let yyy = 2 in (xxx, yyy)
+let f x = (x, x) in f 42
+let f x y = (y, x) in f 1 2
+
+# shadowing
+let x = 3 in let x = true in x
+let x = 3 in let y = x in let x = true in (x,y)
+let x = 3 in \x -> x
+
+# tuples
+(1,true)
+(1,2)
+\a b -> (a,b)
+\a b -> (a,b,1,a)
+\a b -> (a,(b,1),a)
+(\a -> a+1) 5
+(10,10)
+(10, true, ())
+(((1,2),3),(4,5))
+(1 * 2, 3 * 4)

@@ -70,3 +70,55 @@
 :: forall a. a->((((a,a),(a,a)),((a,a),(a,a))),(((a,a),(a,a)),((a,a),(a,a))))
 [35] let f0 k a b = k a b in let f1 k = k f0 f0 in let f2 k = k f1 f1 in f2
 :: forall a b c d e f g h i j k l m n o. (((((a->b->c)->a->b->c)->((d->e->f)->d->e->f)->g)->g)->((((h->i->j)->h->i->j)->((k->l->m)->k->l->m)->n)->n)->o)->o
+[36] (\a -> a) 42
+:: Int
+[37] (\a -> \b -> (b, a)) 1 2
+:: (Int,Int)
+[38] (\a b -> (b, a)) 1 2
+:: (Int,Int)
+[39] (\x -> (\y -> (y,y), \z -> (z,z))) 1
+:: forall a b. (a->(a,a),b->(b,b))
+[40] (\f g x -> f (g x)) (\x -> x)
+:: forall a b. (a->b)->a->b
+[41] let inc = \x -> x + 1 in inc (inc 42)
+:: Int
+[42] let inc = \x -> x + 1 in inc 5
+:: Int
+[43] let x = 5 in x+x
+:: Int
+[44] let f x = x+x in f
+:: Int->Int
+[45] let x = 42 in x
+:: Int
+[46] let xxx = 1 in let yyy = 2 in (xxx, yyy)
+:: (Int,Int)
+[47] let f x = (x, x) in f 42
+:: (Int,Int)
+[48] let f x y = (y, x) in f 1 2
+:: (Int,Int)
+[49] let x = 3 in let x = true in x
+:: Bool
+[50] let x = 3 in let y = x in let x = true in (x,y)
+:: (Bool,Int)
+[51] let x = 3 in \x -> x
+:: forall a. a->a
+[52] (1,true)
+:: (Int,Bool)
+[53] (1,2)
+:: (Int,Int)
+[54] \a b -> (a,b)
+:: forall a b. a->b->(a,b)
+[55] \a b -> (a,b,1,a)
+:: forall a b. a->b->(a,b,Int,a)
+[56] \a b -> (a,(b,1),a)
+:: forall a b. a->b->(a,(b,Int),a)
+[57] (\a -> a+1) 5
+:: Int
+[58] (10,10)
+:: (Int,Int)
+[59] (10, true, ())
+:: (Int,Bool,())
+[60] (((1,2),3),(4,5))
+:: (((Int,Int),Int),(Int,Int))
+[61] (1 * 2, 3 * 4)
+:: (Int,Int)
